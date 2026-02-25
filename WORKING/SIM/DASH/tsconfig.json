@@ -1,0 +1,53 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "downlevelIteration": true,
+        "sourceMap": true,
+        "allowSyntheticDefaultImports": true,
+        "outDir": "src/ts-out/",
+        "removeComments": false,
+        "noImplicitAny": false,
+        "target": "es5",
+        "module": "es6",
+        "strictNullChecks": true,
+        "lib": [
+            "es2016",
+            "dom",
+            "es5"
+        ]
+    },
+    "files": [
+        "./src/types.ts",
+
+        "./src/common/video.ts",
+        "./src/common/time.ts",
+        "./src/common/data.ts",
+        "./src/common/logger.ts",
+        "./src/common/cache.ts",
+        "./src/common/args.ts",
+    
+        "./src/component/stats.ts",
+        "./src/component/intercept.ts",
+        "./src/component/consistency.ts",
+        "./src/component/backend.ts",
+        
+        "./src/controller/quality.ts",
+        "./src/controller/request.ts",
+        "./src/controller/stats.ts",
+
+        "./src/algo/interface.ts",
+        "./src/algo/getters.ts",
+        "./src/algo/remote.ts",
+        "./src/algo/bb.ts",
+        "./src/algo/festive.ts",
+        "./src/algo/bola.ts",
+        "./src/algo/dynamic.ts",
+        "./src/algo/rb.ts",
+        "./src/algo/selector.ts",
+        
+        "./src/apps/front_end.ts",
+        "./src/apps/server_side.ts",
+        "./src/apps/app.ts"
+    ] 
+}
