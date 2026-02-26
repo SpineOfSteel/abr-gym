@@ -29,15 +29,15 @@ python dqn_server.py --host localhost --port 8606 --movie ../movie_4g.json --mod
 - **DQN policy** returns **Q-values**; server selects `argmax(Q)` (optionally ε-greedy)
 - **Logs** are written for plotting
 
-![Architecture overview](..\docs\dqn_architecture.png)
+![Architecture overview](../docs/dqn_architecture.png)
 
-![Per-chunk request flow](..\docs\dqn_request_flow.png)
+![Per-chunk request flow](../docs/dqn_request_flow.png)
 
 ---
 
 ### Deep Q-Network (DQN) 
 
-DQN learns a **state-action value function**:
+ DQN is model-free RL algorithm that combines Q-learning with deep neural networks. DQN learns a **state-action value function**:
 
 - **State**: recent history of buffer, throughput, download time, next chunk sizes, etc.
 - **Action**: discrete quality index (e.g., 0..5)
@@ -98,7 +98,7 @@ This repo includes a DQN training driver (`train_dqn.py`) that learns Q-values u
 - **Double-DQN target**: next action from eval-net, next value from target-net
 - **Target network** with soft updates: `τ = 1e-5`
 
-![Training architecture](..\docs\dqn_training_arch.png)
+![Training architecture](../docs/dqn_training_arch.png)
 
 ### Training loop
 
