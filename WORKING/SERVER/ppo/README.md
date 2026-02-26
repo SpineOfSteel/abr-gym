@@ -28,9 +28,9 @@ python ppo_server.py --host localhost --port 8605 --movie ../movie_4g.json --mod
 - **Server** updates the RL state, computes a QoE reward, and returns the **next quality index**
 - **Logs** are written for plotting
 
-![Architecture overview](..\docs\ppo_architecture.png)
+![Architecture overview](../docs/ppo_architecture.png)
 
-![Per-chunk request flow](..\docs\ppo_request_flow.png)
+![Per-chunk request flow](../docs/ppo_request_flow.png)
 
 
 ---
@@ -92,7 +92,7 @@ Reward = bitrate_mbps - 4.3 * stall_seconds - 1.0 * abs(bitrate_mbps - last_bitr
 
 This repo includes a PPO training driver (`train_ppo.py`) that learns an ABR policy using the same **Pensieve-style state** and the same **QoE reward** objective used by the server.
 
-![Training architecture](..\docs\ppo_training_arch.png)
+![Training architecture](../docs/ppo_training_arch.png)
 
 ### Training architecture
 

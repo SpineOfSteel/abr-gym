@@ -138,16 +138,13 @@ Sent by the video player:
 
 Returns `0..5` for next quality index. Returns `"REFRESH"` at end-of-video.
 
----
 
-## Movie manifest format (`movie_*.json`)
+#### Movie manifest format (`movie_*.json`)
 
 The server expects:
 - `segment_duration_ms`
 - `bitrates_kbps` (length == `A_DIM`)
 - `segment_sizes_bits` list: each segment contains sizes in **bits** for each quality
-
----
 
 ## Logging
 
