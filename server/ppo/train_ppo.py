@@ -3,16 +3,16 @@ import os, sys, shutil,subprocess
 import numpy as np
 import torch
 
-from train_env import ABREnv
-import ppo2 as network
+from SERVER.EnvAbr import ABREnv
+import SERVER.ppo.ppo2 as network
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 # trace json path, video file with bitrate ladder, model path, log path and test script
-TRACE_JSON_PATH = "network.json"  # trace JSON [{duration_ms, bandwidth_kbps, latency_ms}, ...]
-VIDEO_PATH = "movie_4g.json"
-SUMMARY_DIR = "server\\models"
-LOG_FILE = os.path.join(SUMMARY_DIR, "log")
+TRACE_JSON_PATH = "DATASET\\NETWORK\\network.json"  # trace JSON [{duration_ms, bandwidth_kbps, latency_ms}, ...]
+VIDEO_PATH = "DATASET\\MOVIE\\movie_4g.json"
+SUMMARY_DIR = "DATASET\\MODELS"
+LOG_FILE = "SERVER\\SERVER_LOGS"
 NN_MODEL = "ppo_model2.pth"  # preload
 TEST_SCRIPT = "test.py"     # test script path
 

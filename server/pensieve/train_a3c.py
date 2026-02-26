@@ -6,8 +6,8 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from train_env import ABREnv
-import a3c_min as network  # expects ActorNetwork, CriticNetwork, compute_gradients
+from SERVER.EnvAbr import ABREnv
+import SERVER.pensieve.a3c as network  # expects ActorNetwork, CriticNetwork, compute_gradients
 
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -15,9 +15,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 # -----------------------------
 # Paths / inputs
 # -----------------------------
-TRACE_JSON_PATH = "network.json"   # [{duration_ms, bandwidth_kbps, latency_ms}, ...]
-VIDEO_PATH = "movie_4g.json"       # bitrate ladder json
-SUMMARY_DIR = os.path.join("server", "models_a3c_min")
+
+# trace json path, video file with bitrate ladder, model path, log path and test script
+TRACE_JSON_PATH = "DATASET\\NETWORK\\network.json"  # trace JSON [{duration_ms, bandwidth_kbps, latency_ms}, ...]
+VIDEO_PATH = "DATASET\\MOVIE\\movie_4g.json"
+SUMMARY_DIR = "DATASET\\MODELS"
+os.makedirs(SUMMARY_DIR, exist_ok=True)
 
 ACTOR_INIT_MODEL = "a3c_actor.pth"   # optional preload
 CRITIC_INIT_MODEL = "a3c_critic.pth" # optional preload
@@ -37,104 +40,8 @@ TRAIN_EPOCH = 2000
 MODEL_SAVE_INTERVAL = 300
 RANDOM_SEED = 42
 
-os.makedirs(SUMMARY_DIR, exist_ok=True)
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def _to_np32(x):
-    return np.asarray(x, dtype=np.float32)
-
-
-def _predict_probs(actor, obs: np.ndarray) -> np.ndarray:
-    """Returns shape [A_DIM] float32, clipped for stability."""
-    probs = actor.predict(obs.reshape(1, S_DIM[0], S_DIM[1]))
-    probs = np.asarray(probs, dtype=np.float32)
-    if probs.ndim == 2:
-        probs = probs[0]
-    probs = np.clip(probs, 1e-8, 1.0)
-    s = float(probs.sum())
-    if s <= 0:
-        probs = np.ones_like(probs, dtype=np.float32) / float(len(probs))
-    else:
-        probs = probs / s
-    return probs.astype(np.float32)
-
-
-def _entropy(probs: np.ndarray) -> float:
-    p = np.clip(np.asarray(probs, dtype=np.float64), 1e-12, 1.0)
-    return float(-np.sum(p * np.log(p)))
-
-
-def _mean_grads(grad_list: List[List[np.ndarray]]) -> List[np.ndarray]:
-    """
-    Average gradients across workers.
-    Supports `None` entries (for params with no grad).
-    """
-    if not grad_list:
-        return []
-
-    n_params = len(grad_list[0])
-    out = []
-    for i in range(n_params):
-        parts = [g[i] for g in grad_list if g[i] is not None]
-        if not parts:
-            out.append(None)
-            continue
-        arr = np.stack([np.asarray(p, dtype=np.float32) for p in parts], axis=0)
-        out.append(arr.mean(axis=0))
-    return out
-
-
-def _save_model_compat(model, path: str):
-    """Works with either save(...) or save_model(...)."""
-    if hasattr(model, "save_model"):
-        model.save_model(path)
-    elif hasattr(model, "save"):
-        model.save(path)
-    else:
-        raise AttributeError(f"{type(model).__name__} has no save/save_model method")
-
-
-def _load_model_compat(model, path: str):
-    """Works with either load(...) or load_model(...)."""
-    if hasattr(model, "load_model"):
-        model.load_model(path)
-    elif hasattr(model, "load"):
-        model.load(path)
-    else:
-        raise AttributeError(f"{type(model).__name__} has no load/load_model method")
-
-
-def _sync_to_workers(net_param_queues, actor, critic):
-    actor_params = actor.get_network_params()
-    critic_params = critic.get_network_params()
-    payload = (actor_params, critic_params)
-    for q in net_param_queues:
-        q.put(payload)
-
-
-def _collect_worker_payloads(exp_queues):
-    """
-    Each worker sends:
-      (actor_grads, critic_grads, reward_sum, entropy_mean, n_steps)
-    """
-    actor_grads_all = []
-    critic_grads_all = []
-    rewards = []
-    entropies = []
-    steps = []
-
-    for q in exp_queues:
-        actor_g, critic_g, reward_sum, entropy_mean, n_steps = q.get()
-        actor_grads_all.append(actor_g)
-        critic_grads_all.append(critic_g)
-        rewards.append(float(reward_sum))
-        entropies.append(float(entropy_mean))
-        steps.append(int(n_steps))
-
-    return actor_grads_all, critic_grads_all, rewards, entropies, steps
 
 
 # -----------------------------
@@ -326,3 +233,100 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def _to_np32(x):
+    return np.asarray(x, dtype=np.float32)
+
+
+def _predict_probs(actor, obs: np.ndarray) -> np.ndarray:
+    """Returns shape [A_DIM] float32, clipped for stability."""
+    probs = actor.predict(obs.reshape(1, S_DIM[0], S_DIM[1]))
+    probs = np.asarray(probs, dtype=np.float32)
+    if probs.ndim == 2:
+        probs = probs[0]
+    probs = np.clip(probs, 1e-8, 1.0)
+    s = float(probs.sum())
+    if s <= 0:
+        probs = np.ones_like(probs, dtype=np.float32) / float(len(probs))
+    else:
+        probs = probs / s
+    return probs.astype(np.float32)
+
+
+def _entropy(probs: np.ndarray) -> float:
+    p = np.clip(np.asarray(probs, dtype=np.float64), 1e-12, 1.0)
+    return float(-np.sum(p * np.log(p)))
+
+
+def _mean_grads(grad_list: List[List[np.ndarray]]) -> List[np.ndarray]:
+    """
+    Average gradients across workers.
+    Supports `None` entries (for params with no grad).
+    """
+    if not grad_list:
+        return []
+
+    n_params = len(grad_list[0])
+    out = []
+    for i in range(n_params):
+        parts = [g[i] for g in grad_list if g[i] is not None]
+        if not parts:
+            out.append(None)
+            continue
+        arr = np.stack([np.asarray(p, dtype=np.float32) for p in parts], axis=0)
+        out.append(arr.mean(axis=0))
+    return out
+
+
+def _save_model_compat(model, path: str):
+    """Works with either save(...) or save_model(...)."""
+    if hasattr(model, "save_model"):
+        model.save_model(path)
+    elif hasattr(model, "save"):
+        model.save(path)
+    else:
+        raise AttributeError(f"{type(model).__name__} has no save/save_model method")
+
+
+def _load_model_compat(model, path: str):
+    """Works with either load(...) or load_model(...)."""
+    if hasattr(model, "load_model"):
+        model.load_model(path)
+    elif hasattr(model, "load"):
+        model.load(path)
+    else:
+        raise AttributeError(f"{type(model).__name__} has no load/load_model method")
+
+
+def _sync_to_workers(net_param_queues, actor, critic):
+    actor_params = actor.get_network_params()
+    critic_params = critic.get_network_params()
+    payload = (actor_params, critic_params)
+    for q in net_param_queues:
+        q.put(payload)
+
+
+def _collect_worker_payloads(exp_queues):
+    """
+    Each worker sends:
+      (actor_grads, critic_grads, reward_sum, entropy_mean, n_steps)
+    """
+    actor_grads_all = []
+    critic_grads_all = []
+    rewards = []
+    entropies = []
+    steps = []
+
+    for q in exp_queues:
+        actor_g, critic_g, reward_sum, entropy_mean, n_steps = q.get()
+        actor_grads_all.append(actor_g)
+        critic_grads_all.append(critic_g)
+        rewards.append(float(reward_sum))
+        entropies.append(float(entropy_mean))
+        steps.append(int(n_steps))
+
+    return actor_grads_all, critic_grads_all, rewards, entropies, steps

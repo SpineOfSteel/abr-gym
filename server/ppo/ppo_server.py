@@ -12,7 +12,7 @@ import numpy as np
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-import ppo2 as network  # keep ppo2.py unchanged
+import SERVER.ppo.ppo2 as network  # keep ppo2.py unchanged
 
 SUMMARY_DIR = "..//SERVER_LOGS"
 LOG_FILE = SUMMARY_DIR + "//log_PPO"

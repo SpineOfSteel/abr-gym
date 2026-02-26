@@ -12,7 +12,7 @@ import numpy as np
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-import dqn_torch as dqn  
+import SERVER.dqn.dqn as dqn  
 
 # ---------- RL / state constants ----------
 S_INFO = 6   # bitrate, buffer, throughput, dl_time, next_chunk_sizes, chunks_left

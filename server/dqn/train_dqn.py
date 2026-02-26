@@ -2,11 +2,14 @@ import os, random
 import numpy as np
 import torch
 
-from train_env import ABREnv
-import dqn_torch as dqn
+from SERVER.EnvAbr import ABREnv
+import SERVER.dqn.dqn as dqn
 
-TRACE_JSON_PATH = "network.json"
-VIDEO_PATH = "movie_4g.json"
+# trace json path, video file with bitrate ladder, model path, log path and test script
+TRACE_JSON_PATH = "DATASET\\NETWORK\\network.json"  # trace JSON [{duration_ms, bandwidth_kbps, latency_ms}, ...]
+VIDEO_PATH = "DATASET\\MOVIE\\movie_4g.json"
+SAVE_DIR = "DATASET\\MODELS"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 RANDOM_SEED = 42
 MAX_EPISODES = 2000
@@ -16,18 +19,8 @@ LR = 1e-4
 EPS_START, EPS_END = 1.0, 0.05
 EPS_DECAY_STEPS = 100_000
 
-SAVE_DIR = "server//models_dqn"
-os.makedirs(SAVE_DIR, exist_ok=True)
 
-def eps_by_step(step):
-    if step >= EPS_DECAY_STEPS:
-        return EPS_END
-    return EPS_START + (EPS_END - EPS_START) * (step / EPS_DECAY_STEPS)
 
-def one_hot(a, n):
-    x = np.zeros(n, dtype=np.float32)
-    x[a] = 1.0
-    return x
 
 def main():
     np.random.seed(RANDOM_SEED)
@@ -82,6 +75,18 @@ def main():
 
         if ep % 100 == 0:
             agent.save_model(os.path.join(SAVE_DIR, f"dqn_ep_{ep}.pth"))
+
+
+    
+def eps_by_step(step):
+    if step >= EPS_DECAY_STEPS:
+        return EPS_END
+    return EPS_START + (EPS_END - EPS_START) * (step / EPS_DECAY_STEPS)
+
+def one_hot(a, n):
+    x = np.zeros(n, dtype=np.float32)
+    x[a] = 1.0
+    return x
 
 if __name__ == "__main__":
     main()

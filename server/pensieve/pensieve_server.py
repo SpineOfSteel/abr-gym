@@ -11,7 +11,7 @@ import numpy as np
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-import a3c_min as a3c
+import SERVER.pensieve.a3c as a3c
 # ---------- RL constants ----------
 S_INFO = 6  # bitrate, buffer, throughput, dl_time, next_chunk_sizes, chunks_left
 S_LEN = 8
