@@ -1,8 +1,5 @@
-#python ppo_server.py --verbose --debug  --port 8607 
-#python ppo_server.py --verbose --debug --port 8601 --model ../models/nn_model_ep_1800.pth --movie ../../movie_4g.json
-# DEBUG python ppo_server.py --port 8605 --debug --verbose --model 'server/models/ppo_model.pth' --movie 'movie_4g.json'
+#python ppo_server.py --verbose --debug  --port 8607  -model ../models/nn_model_ep_1800.pth --movie ../../movie_4g.json
 # DIRECT python ppo_server.py --port 8605 --debug --verbose --model 'models/ppo_model.pth' --movie '../movie_4g.json'
-# PyTorch no-training PPO ABR server (movie.json-driven, ppo2.py kept unchanged)
 
 import argparse
 import json
@@ -17,13 +14,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import ppo2 as network  # keep ppo2.py unchanged
 
-
-SUMMARY_DIR = "output"
-LOG_FILE = "output/log_PPO_"
-DEFAULT_MODEL_PATH = os.environ.get("TORCH_PPO_MODEL", "models/ppo_model.pth")
-#DEFAULT_MODEL_PATH = os.environ.get("TORCH_PPO_MODEL", "models/nn_model_ep_1800.pth")
-#print("Current Working Directory:", os.getcwd())
-#print(os.path.isfile("models/ppo_model.pth"))
+SUMMARY_DIR = "..//SERVER_LOGS"
+LOG_FILE = SUMMARY_DIR + "//log_PPO"
+print("Current Working Directory:", os.getcwd())
+DEFAULT_MODEL_PATH = os.environ.get("TORCH_PPO_MODEL", "..//..//DATASET//MODELS//ppo_model.pth")
 
 # ---------- PPO/RL constants (aligned to attached PPO test script) ----------
 S_INFO = 6
@@ -368,7 +362,7 @@ def run(
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--movie", default="../movie_4g.json", help="Path to movie.json")
+    ap.add_argument("--movie", default="..//..//DATASET\MOVIE//movie_4g.json", help="Path to movie.json")
     ap.add_argument("--port", type=int, default=8605)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--log-prefix", default="")

@@ -1,5 +1,5 @@
 # dqn_server.py
-# python dqn_server.py --movie ../movie_4g.json --port 8606 --model dqn_ep_1000.pth --debug
+# python dqn_server.py --movie ../movie_4g.json --port 8606 --model dqn_ep_1000.pth --debug --verbose
 
 import argparse
 import json
@@ -12,8 +12,7 @@ import numpy as np
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-import dqn_torch as dqn  # your Torch DQN module
-
+import dqn_torch as dqn  
 
 # ---------- RL / state constants ----------
 S_INFO = 6   # bitrate, buffer, throughput, dl_time, next_chunk_sizes, chunks_left
@@ -28,10 +27,12 @@ SMOOTH_PENALTY = 1
 
 DQN_LR_RATE = 1e-4         # only used to instantiate the network object
 RANDOM_SEED = 42
-SUMMARY_DIR = "output"
-LOG_FILE = "output/log_DQN_"
 
-DEFAULT_MODEL_PATH = os.environ.get("TORCH_DQN_MODEL", "dqn_model.pth")
+
+SUMMARY_DIR = "..//SERVER_LOGS"
+LOG_FILE = SUMMARY_DIR + "//log_DQN"
+print("Current Working Directory:", os.getcwd())
+DEFAULT_MODEL_PATH = os.environ.get("TORCH_DQN_MODEL", "..//..//DATASET//MODELS//dqn_ep_400.pth")
 
 
 # ---------- Movie loader ----------
@@ -358,7 +359,7 @@ def run(
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--movie", default="../../movie_4g.json", help="Path to movie.json")
+    ap.add_argument("--movie", default="..//..//DATASET//MOVIE//movie_4g.json", help="Path to movie.json")
     ap.add_argument("--port", type=int, default=8606)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--log-prefix", default="")

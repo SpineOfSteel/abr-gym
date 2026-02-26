@@ -26,9 +26,10 @@ REBUF_PENALTY = 20
 SMOOTH_PENALTY = 1
 
 RANDOM_SEED = 42
-SUMMARY_DIR = "output"
-LOG_FILE = "output/log1_"
-LOG_BW = "output/log2_"
+SUMMARY_DIR = "SERVER_LOGS"
+LOG_FILE = SUMMARY_DIR + "//log1"
+LOG_BW = SUMMARY_DIR + "//log2"
+print("Current Working Directory:", os.getcwd())
 
 
 # ---------- Movie loader ----------
@@ -376,7 +377,7 @@ def run(port: int, movie_path: str, log_prefix: str = "", host: str = "0.0.0.0",
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--movie", default="'../movie_4g.json'", help="Path to movie.json")
+    ap.add_argument("--movie", default="..//DATASET//MOVIE//movie_4g.json", help="Path to movie.json")
     ap.add_argument("--port", type=int, default=8333)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--log-prefix", default="")

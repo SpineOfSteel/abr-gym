@@ -28,10 +28,10 @@ CRITIC_LR_RATE = 0.001
 RANDOM_SEED = 42
 RAND_RANGE = 1000
 
-SUMMARY_DIR = "output"
-LOG_FILE = "output/log_RL_"
-
-DEFAULT_MODEL_PATH = os.environ.get("TORCH_PENSIEVE_MODEL", "../rl_server/results/actor_model.pth")
+SUMMARY_DIR = "..//SERVER_LOGS"
+LOG_FILE = SUMMARY_DIR + "//log_RL"
+print("Current Working Directory:", os.getcwd())
+DEFAULT_MODEL_PATH = os.environ.get("TORCH_PENSIEVE_MODEL", "..//..//DATASET//MODELS//a3c_actor_ep_1800.pth")
 
 
 # ---------- Movie loader (exact movie.json schema) ----------
@@ -416,7 +416,7 @@ def run(
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--movie", default="../../movie_4g.json", help="Path to movie.json")
+    ap.add_argument("--movie", default="..//..//DATASET//MOVIE//movie_4g.json", help="Path to movie.json")
     ap.add_argument("--port", type=int, default=8605)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--log-prefix", default="")
