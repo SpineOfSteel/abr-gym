@@ -32,7 +32,6 @@ __pycache__/
 # ----------------------------
 .venv/
 venv/
-env/
 .conda/
 pip-wheel-metadata/
 pip-log.txt
