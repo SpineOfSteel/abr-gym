@@ -1,0 +1,52 @@
+# ----------------------------
+# Sphinx / ReadTheDocs outputs
+# ----------------------------
+docs/_build/
+docs/_autosummary/
+docs/_static/.DS_Store
+docs/_static/**/*.pyc
+
+# If you build docs outside docs/
+_build/
+build/
+site/
+
+# Sphinx caches / temp
+docs/.doctrees/
+docs/.cache/
+docs/.pytest_cache/
+.pytest_cache/
+
+# ----------------------------
+# Python caches
+# ----------------------------
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+# ----------------------------
+# Virtual envs / tooling
+# ----------------------------
+.venv/
+venv/
+env/
+.conda/
+pip-wheel-metadata/
+pip-log.txt
+
+# ----------------------------
+# OS / IDE
+# ----------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ----------------------------
+# Logs / artifacts
+# ----------------------------
+#*.log
+#SERVER_LOGS/
