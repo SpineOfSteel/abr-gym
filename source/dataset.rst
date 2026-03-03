@@ -1,6 +1,28 @@
 Dataset
 =======
 
+Dataset matrix
+--------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - File type
+     - Example
+     - Used by
+   * - Movie manifest JSON
+     - ``movie_4g.json``
+     - SABRE, PPO server, A3C server, DQN server
+   * - Slot trace JSON
+     - ``4g_trace_driving_50015_dr.json``
+     - EnvNetwork/EnvAbr, training scripts, SABRE inputs (if converted)
+   * - Time series trace (2-col TSV)
+     - ``norway_bus_1``
+     - Raw trace source; convert to slot JSON for EnvAbr/servers
+   * - Per-chunk simulation log (TSV)
+     - ``log_sim_bb_norway_bus_1``
+     - Analysis/plotting only (not an input)
+
 This project reads input files from ``DATASET/`` to drive ABR simulation and training.
 The two most important inputs are:
 
@@ -27,7 +49,7 @@ This page defines the supported formats and provides concrete examples.
        └── norway_tram
 
 
-1) MOVIE (Manifest JSON)
+Movie
 ------------------------
 
 **Example file:** ``DATASET/MOVIE/movie_4g.json``
@@ -67,11 +89,13 @@ Notes
 See: ``movie_4g.json`` sample. :contentReference[oaicite:0]{index=0}
 
 
-2) NETWORK (Slot Trace JSON)
+Network
 ----------------------------
 This folder group contains trace formats used by the network simulator and ABR servers. The primary format is the “slot-trace JSON” (list of slot objects), which captures bandwidth, slot duration, and latency over time. This is the format consumed by your EnvNetwork and EnvAbr classes
 
-2A) Slot-trace JSON is the primary format used by ``SERVER/EnvAbr.py`` and ``SERVER/EnvNetwork.py``. A trace is a JSON list of “slots”; each slot is an object:
+2A) Slot-trace JSON 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+is the primary format used by ``SERVER/EnvAbr.py`` and ``SERVER/EnvNetwork.py``. A trace is a JSON list of “slots”; each slot is an object:
 
 - ``duration_ms``: slot duration (ms)
 - ``bandwidth_kbps``: throughput capacity in kbps
@@ -87,7 +111,7 @@ This is the same trace schema referenced by  training scripts (refer to
 ``network.json`` in the same format).
 
 Example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
 
 .. code-block:: json
 
@@ -109,7 +133,7 @@ How it’s consumed
 (Those mechanics are implemented in ``EnvNetwork.get_video_chunk()``.)
 
 2B) Mahimahi time series 
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some folders may contain alternative trace representations used by other toolchains.
 
@@ -141,7 +165,7 @@ Usage guidance
   - assign a reasonable default or measured ``latency_ms``
 
 
-3) TRACES/norway_tram (Example simulator output / log)
+Traces
 ------------------------------------------------------
 
 Your ``TRACES/norway_tram`` folder can also include:
@@ -173,27 +197,4 @@ Interpretation (recommended convention)
 6. download time (ms)
 7. reward / QoE (float)
 
-If you want, I can lock this down precisely by matching it against the logger that
-writes this file in your SABRE pipeline (and then we’ll document the exact header).
 
-Compatibility matrix
---------------------
-
-.. list-table::
-   :header-rows: 1
-
-   * - File type
-     - Example
-     - Used by
-   * - Movie manifest JSON
-     - ``movie_4g.json``
-     - SABRE, PPO server, A3C server, DQN server
-   * - Slot trace JSON
-     - ``4g_trace_driving_50015_dr.json``
-     - EnvNetwork/EnvAbr, training scripts, SABRE inputs (if converted)
-   * - Time series trace (2-col TSV)
-     - ``norway_bus_1``
-     - Raw trace source; convert to slot JSON for EnvAbr/servers
-   * - Per-chunk simulation log (TSV)
-     - ``log_sim_bb_norway_bus_1``
-     - Analysis/plotting only (not an input)

@@ -21,10 +21,10 @@ Quick navigation
    :maxdepth: 2
    :caption: Contents:
 
-   dataset/index
    algo/index
-   env/index
-   sabre
+   dataset
+   env/index   
+   sim/index
    plots
 
 Project layout

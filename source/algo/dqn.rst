@@ -2,15 +2,15 @@ DQN
 ===
 
 Folder: ``SERVER/dqn``
-
-This module provides an HTTP ABR decision server backed by a DQN (Double-DQN)
-value-based policy, using a Pensieve-style state representation.
+DQN is Value-based RL ABR. Inspired by Pensieve-style state representation and reward design, but using a Double-DQN architecture. It serves ABR decisions via an HTTP API, allowing it to be used as a remote ABR server for clients that can send chunk stats and receive quality decisions.
 
 It includes:
-
+- **DQN model**: ``dqn.py`` (PyTorch Double-DQN with replay buffer + target net)
 - **Inference server**: ``dqn_server.py`` (HTTP + CORS, returns next quality index)
 - **Trainer**: ``train_dqn.py`` (offline training against ``ABREnv``)
-- **DQN model**: ``dqn.py`` (PyTorch Double-DQN with replay buffer + target net)
+
+This module provides an HTTP ABR decision server backed by a DQN 
+value-based policy, using a Pensieve-style state representation.
 
 Repository files
 ----------------
@@ -21,17 +21,12 @@ Repository files
    ├── dqn.py
    ├── dqn_server.py
    ├── train_dqn.py
-   └── README.md
 
 Quickstart
 ----------
+1. Run the DQN server (with a model checkpoint or random weights).
+2. Send POST requests with chunk stats to get quality decisions.
 
-Install dependencies
-~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   pip install numpy torch
 
 Run the DQN ABR server
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -189,15 +184,6 @@ The training loop typically performs:
 
 Troubleshooting
 ---------------
-
-Sphinx autodoc import errors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you use autodoc, ensure your ``docs/conf.py`` includes the repo root in ``sys.path``.
-If you want ``SERVER`` imports like ``SERVER.dqn.dqn``, make sure:
-
-- ``SERVER/__init__.py`` exists (so SERVER is a Python package)
-- ``SERVER/dqn/__init__.py`` exists (optional but recommended)
 
 Model not found
 ~~~~~~~~~~~~~~~

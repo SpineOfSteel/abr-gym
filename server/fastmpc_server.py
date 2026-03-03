@@ -4,6 +4,7 @@
 import argparse
 import itertools
 import json
+from multiprocessing.util import debug
 import os
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -32,73 +33,6 @@ LOG_BW = SUMMARY_DIR + "//log2"
 print("Current Working Directory:", os.getcwd())
 
 
-# ---------- Movie loader ----------
-def load_movie_json(path: str, debug: bool = False) -> Dict:
-    with open(path, "r", encoding="utf-8") as f:
-        movie = json.load(f)
-
-    if "segment_duration_ms" not in movie:
-        raise ValueError("movie.json missing segment_duration_ms")
-    if "bitrates_kbps" not in movie:
-        raise ValueError("movie.json missing bitrates_kbps")
-    if "segment_sizes_bits" not in movie:
-        raise ValueError("movie.json missing segment_sizes_bits")
-
-    # segment_duration_ms -> seconds
-    chunk_duration_s = float(movie["segment_duration_ms"]) / 1000.0
-
-    # bitrates in kbps
-    video_bit_rate_kbps = [int(x) for x in movie["bitrates_kbps"]]
-    if len(video_bit_rate_kbps) != 6:
-        raise ValueError(f"Expected exactly 6 qualities, got {len(video_bit_rate_kbps)}")
-
-    # segment_sizes_bits is assumed to be [segments][qualities] in *bits*
-    # Convert bits -> bytes (ceil)
-    seg_bytes_quality: List[List[int]] = []
-    for seg_idx, arr in enumerate(movie["segment_sizes_bits"]):
-        if len(arr) != len(video_bit_rate_kbps):
-            raise ValueError(
-                f"segment_sizes_bits[{seg_idx}] has {len(arr)} entries, expected {len(video_bit_rate_kbps)}"
-            )
-        seg_bytes_quality.append([(int(x) + 7) // 8 for x in arr])
-
-    # IMPORTANT: total_video_chunks should be the MAX valid segment index.
-    # If there are N segments in JSON, valid indices are 0..N-1, so TOTAL = N-1.
-    total_video_chunks = int(movie.get("total_video_chunks", len(seg_bytes_quality) - 1))
-
-    if debug:
-        print("\n[MOVIE] Loaded movie.json")
-        print(f"[MOVIE] path={path}")
-        print(f"[MOVIE] movie_id={movie.get('movie_id', os.path.basename(path))}")
-        print(f"[MOVIE] segment_duration_ms={movie['segment_duration_ms']} -> chunk_duration_s={chunk_duration_s}")
-        print(f"[MOVIE] qualities={len(video_bit_rate_kbps)} bitrates_kbps={video_bit_rate_kbps}")
-        print(f"[MOVIE] segments_in_json={len(seg_bytes_quality)} => total_video_chunks={total_video_chunks}")
-        if seg_bytes_quality:
-            print(f"[MOVIE] first_segment_sizes_bytes(q0..q5)={seg_bytes_quality[0]}")
-        # quick sanity check for q0
-        exp_bytes_q0 = int(video_bit_rate_kbps[0] * 1000 * chunk_duration_s / 8)
-        print(f"[MOVIE] sanity: expected bytes/segment at q0≈{exp_bytes_q0} (from bitrate & duration)\n")
-
-    return {
-        "movie_id": movie.get("movie_id", os.path.basename(path)),
-        "chunk_duration_s": chunk_duration_s,
-        "video_bit_rate_kbps": video_bit_rate_kbps,
-        # shape: [segment_index][quality] -> bytes
-        "seg_bytes_quality": seg_bytes_quality,
-        "total_video_chunks": total_video_chunks,
-    }
-
-
-def build_chunk_combo_options(n_qualities: int) -> List[Tuple[int, ...]]:
-    return list(itertools.product(range(n_qualities), repeat=MPC_FUTURE_CHUNK_COUNT))
-
-
-def cors_headers(h: BaseHTTPRequestHandler) -> None:
-    h.send_header("Access-Control-Allow-Origin", "*")
-    h.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    h.send_header("Access-Control-Allow-Headers", "Content-Type")
-
-
 def make_handler(
     state: Dict,
     movie: Dict,
@@ -112,50 +46,10 @@ def make_handler(
     CHUNK_DURATION_S = float(movie["chunk_duration_s"])
     CHUNK_TIL_VIDEO_END_CAP = float(TOTAL_VIDEO_CHUNKS)
 
-    def dprint(*args):
-        if debug:
-            print(*args)
 
-    def vprint(*args):
-        if verbose:
-            print(*args)
-
-    def get_chunk_size(quality: int, index: int) -> int:
-        # Safe bounds
-        if index < 0 or index >= len(CHUNK_SIZES):
-            if debug:
-                print(f"[WARN] get_chunk_size out-of-range: index={index}, len={len(CHUNK_SIZES)}")
-            return 0
-        if quality < 0 or quality >= len(VIDEO_BIT_RATE):
-            if debug:
-                print(f"[WARN] get_chunk_size bad quality: q={quality}, nQ={len(VIDEO_BIT_RATE)}")
-            return 0
-        return CHUNK_SIZES[index][quality]  # bytes
 
     class RequestHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
-
-        def log_message(self, format, *args):
-            return
-
-        def do_OPTIONS(self):
-            self.send_response(204)
-            cors_headers(self)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            dprint(f"[HTTP] OPTIONS from {self.client_address}")
-
-        def do_GET(self):
-            body = f"console.log('fast_mpc_server: ok ({movie['movie_id']})');\n"
-            data = body.encode("utf-8")
-            self.send_response(200)
-            cors_headers(self)
-            self.send_header("Content-Type", "application/javascript; charset=utf-8")
-            self.send_header("Cache-Control", "max-age=3000")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-            dprint(f"[HTTP] GET from {self.client_address} -> 200 ({len(data)} bytes)")
 
         def do_POST(self):
             state["req_id"] += 1
@@ -313,6 +207,29 @@ def make_handler(
 
             return self._reply_text(send_data)
 
+
+        def log_message(self, format, *args):
+            return
+
+        def do_OPTIONS(self):
+            self.send_response(204)
+            cors_headers(self)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            dprint(f"[HTTP] OPTIONS from {self.client_address}")
+
+        def do_GET(self):
+            body = f"console.log('fast_mpc_server: ok ({movie['movie_id']})');\n"
+            data = body.encode("utf-8")
+            self.send_response(200)
+            cors_headers(self)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "max-age=3000")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            dprint(f"[HTTP] GET from {self.client_address} -> 200 ({len(data)} bytes)")
+
         def _reply_text(self, text: str, status: int = 200):
             body = text.encode("utf-8")
             self.send_response(status)
@@ -322,8 +239,95 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
             dprint(f"[HTTP] -> {status} reply='{text}' ({len(body)} bytes)")
+    
+    def dprint(*args):
+        if debug:
+            print(*args)
 
+    def vprint(*args):
+        if verbose:
+            print(*args)
+
+    def get_chunk_size(quality: int, index: int) -> int:
+        # Safe bounds
+        if index < 0 or index >= len(CHUNK_SIZES):
+            if debug:
+                print(f"[WARN] get_chunk_size out-of-range: index={index}, len={len(CHUNK_SIZES)}")
+            return 0
+        if quality < 0 or quality >= len(VIDEO_BIT_RATE):
+            if debug:
+                print(f"[WARN] get_chunk_size bad quality: q={quality}, nQ={len(VIDEO_BIT_RATE)}")
+            return 0
+        return CHUNK_SIZES[index][quality]  # bytes
     return RequestHandler
+
+# ---------- Movie loader ----------
+def load_movie_json(path: str, debug: bool = False) -> Dict:
+    with open(path, "r", encoding="utf-8") as f:
+        movie = json.load(f)
+
+    if "segment_duration_ms" not in movie:
+        raise ValueError("movie.json missing segment_duration_ms")
+    if "bitrates_kbps" not in movie:
+        raise ValueError("movie.json missing bitrates_kbps")
+    if "segment_sizes_bits" not in movie:
+        raise ValueError("movie.json missing segment_sizes_bits")
+
+    # segment_duration_ms -> seconds
+    chunk_duration_s = float(movie["segment_duration_ms"]) / 1000.0
+
+    # bitrates in kbps
+    video_bit_rate_kbps = [int(x) for x in movie["bitrates_kbps"]]
+    if len(video_bit_rate_kbps) != 6:
+        raise ValueError(f"Expected exactly 6 qualities, got {len(video_bit_rate_kbps)}")
+
+    # segment_sizes_bits is assumed to be [segments][qualities] in *bits*
+    # Convert bits -> bytes (ceil)
+    seg_bytes_quality: List[List[int]] = []
+    for seg_idx, arr in enumerate(movie["segment_sizes_bits"]):
+        if len(arr) != len(video_bit_rate_kbps):
+            raise ValueError(
+                f"segment_sizes_bits[{seg_idx}] has {len(arr)} entries, expected {len(video_bit_rate_kbps)}"
+            )
+        seg_bytes_quality.append([(int(x) + 7) // 8 for x in arr])
+
+    # IMPORTANT: total_video_chunks should be the MAX valid segment index.
+    # If there are N segments in JSON, valid indices are 0..N-1, so TOTAL = N-1.
+    total_video_chunks = int(movie.get("total_video_chunks", len(seg_bytes_quality) - 1))
+
+    if debug:
+        print("\n[MOVIE] Loaded movie.json")
+        print(f"[MOVIE] path={path}")
+        print(f"[MOVIE] movie_id={movie.get('movie_id', os.path.basename(path))}")
+        print(f"[MOVIE] segment_duration_ms={movie['segment_duration_ms']} -> chunk_duration_s={chunk_duration_s}")
+        print(f"[MOVIE] qualities={len(video_bit_rate_kbps)} bitrates_kbps={video_bit_rate_kbps}")
+        print(f"[MOVIE] segments_in_json={len(seg_bytes_quality)} => total_video_chunks={total_video_chunks}")
+        if seg_bytes_quality:
+            print(f"[MOVIE] first_segment_sizes_bytes(q0..q5)={seg_bytes_quality[0]}")
+        # quick sanity check for q0
+        exp_bytes_q0 = int(video_bit_rate_kbps[0] * 1000 * chunk_duration_s / 8)
+        print(f"[MOVIE] sanity: expected bytes/segment at q0≈{exp_bytes_q0} (from bitrate & duration)\n")
+
+    return {
+        "movie_id": movie.get("movie_id", os.path.basename(path)),
+        "chunk_duration_s": chunk_duration_s,
+        "video_bit_rate_kbps": video_bit_rate_kbps,
+        # shape: [segment_index][quality] -> bytes
+        "seg_bytes_quality": seg_bytes_quality,
+        "total_video_chunks": total_video_chunks,
+    }
+
+
+def build_chunk_combo_options(n_qualities: int) -> List[Tuple[int, ...]]:
+    return list(itertools.product(range(n_qualities), repeat=MPC_FUTURE_CHUNK_COUNT))
+
+
+def cors_headers(h: BaseHTTPRequestHandler) -> None:
+    h.send_header("Access-Control-Allow-Origin", "*")
+    h.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    h.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+
 
 def run(port: int, movie_path: str, log_prefix: str = "", host: str = "0.0.0.0", debug: bool = False, verbose: bool = False):
     np.random.seed(RANDOM_SEED)
