@@ -38,7 +38,7 @@ Cons:
 - ignores buffer entirely
 
 
-BB (Buffer-Based / BBA-like)
+BB (Buffer-Based)
 ============================
 
 Plugin name: ``bb``

@@ -21,11 +21,11 @@ Quick navigation
    :maxdepth: 2
    :caption: Contents:
 
-   algo/index
+   algo/index2
    dataset
    env/index   
    sim/index
-   plots
+   plot
 
 Project layout
 --------------

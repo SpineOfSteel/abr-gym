@@ -126,7 +126,7 @@ The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense cit
 
    Observed bandwidth along the bus route.
 
-The bus bandwidth profile is variable but not dominated by one single collapse. That makes bus a good test of how smoothly a controller reacts to medium-scale fluctuation.
+The updated bus bandwidth view shows a route that starts in a lower and more irregular throughput region, then transitions into a long, bursty high-capacity stretch with many samples between roughly 2--5 Mbps and repeated spikes above 6 Mbps. Rather than one catastrophic outage, bus exhibits sustained volatility with a clear mid-route improvement, so it is a good test of whether a controller can climb quickly when capacity improves without becoming unstable.
 
 .. figure:: ../PLOT/graphs/baselines-bus-br.png
    :alt: Mean video bitrate for bus traces
@@ -194,7 +194,7 @@ The car dataset includes **Alesund to Oslo** and **Oslo to Alesund**. These are 
 
    Observed bandwidth along the car route.
 
-The car bandwidth figure shows long weak stretches interrupted by short high-capacity windows. A controller that overreacts to peaks can be punished heavily afterward.
+The updated car bandwidth trace for ``car.snaroya-smestad`` begins with mixed moderate bandwidth, rises into a highly bursty section with several sharp peaks approaching the top of the figure, and then gradually decays into a long lower-throughput tail with near-zero samples near the end. This makes car a strong long-horizon adaptation test: algorithms that chase the early spikes too aggressively can be exposed once the route settles into weaker connectivity.
 
 .. figure:: ../PLOT/graphs/baselines-car-br.png
    :alt: Mean video bitrate for car traces
@@ -262,7 +262,7 @@ The ferry route runs from **Nesoddtangen to Aker brygge**. Compared with land-on
 
    Observed bandwidth along the ferry route.
 
-The ferry bandwidth profile is healthy for much of the route and then collapses sharply near the end, making late-session caution important.
+The updated ferry profile for ``ferry.nesoddtangen-oslo`` is structured in phases: an initially strong section with many samples around 3--5 Mbps and spikes beyond 6 Mbps, a broad middle trough, a renewed high-capacity segment, and then a sharp disruption where the bandwidth briefly drops close to zero before recovering again. This stop--recover pattern is important because it rewards controllers that can both exploit the strong open-water stretches and quickly back off around abrupt weak-signal intervals.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-br.png
    :alt: Mean video bitrate for ferry traces
@@ -330,7 +330,7 @@ The metro route runs from **Kalbakken to Jernbanetorget**. Part of the route is 
 
    Observed bandwidth along the metro route.
 
-The metro bandwidth profile shows the collapse region clearly. Tunnel entry and exit are where reckless adaptation is punished.
+The updated metro trace for ``metro.kalbakken-jernbanetorget`` is less about one complete collapse and more about persistent moderate bandwidth with noisy local variation: much of the route stays around roughly 0.5--2.2 Mbps, with occasional spikes toward 4--5 Mbps. That makes metro a good benchmark for conservative adaptation under sustained uncertainty, where frequent medium-scale changes matter more than a single dramatic outage.
 
 .. figure:: ../PLOT/graphs/baselines-metro-br.png
    :alt: Mean video bitrate for metro traces
@@ -398,7 +398,7 @@ The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These trac
 
    Observed bandwidth along the train route.
 
-The train bandwidth profile is less catastrophic than car, but still variable enough to reward careful adaptation.
+The updated train bandwidth figures show strong directional variability across both ``train.oslo-vestby`` and ``train.vestby-oslo``. In both directions the route alternates between low-throughput pockets, bursty mid-range regions, and occasional large spikes above 5 Mbps, but the exact placement and severity of those pockets differ between directions. This makes train useful for evaluating whether an ABR method generalizes across the same corridor when the temporal structure of capacity changes is not symmetric.
 
 .. figure:: ../PLOT/graphs/baselines-train-br.png
    :alt: Mean video bitrate for train traces
@@ -466,7 +466,7 @@ The tram portion includes multiple urban routes such as **Ljabru to Jernbanetorg
 
    Observed bandwidth along the tram route.
 
-The tram bandwidth profile is noisy but not dominated by a single total collapse, so stability matters more than peak chasing.
+The updated tram views show clear directional asymmetry. ``tram.ljabru-jernbanetorget`` contains a noisier and more bursty middle section with several tall spikes, while ``tram.jernbanetorget-ljabru`` is more compressed and generally stays within a lower range. Across both directions, most of the route lives in a moderate-bandwidth regime with frequent short swings rather than long hard outages, so tram remains a strong stability-focused benchmark where overshooting on short-lived peaks can still hurt consistency.
 
 .. figure:: ../PLOT/graphs/baselines-tram-br.png
    :alt: Mean video bitrate for tram traces

@@ -533,6 +533,106 @@ Several implementation details directly affect how these figures should be inter
 - ``plot_qoe_cdf()`` builds QoE curves from a 500-bin histogram and cumulative sum. These are empirical distribution summaries over per-trace reward values, not parametric fits.
 - ``fix_axes()`` centralizes styling across figures: axis labels, dashed grid, hidden top/right spines, a three-column legend in the upper right, and optional titles. This is why the panels have a consistent visual style throughout the page.
 
+
+Stable-Baselines3 RL Training Curves
+------------------------------------
+
+In addition to the Norway transport-wise evaluation above, we also generated a second family of plots from Stable-Baselines3 training logs for multiple RL agents on the ``abr-gym`` environment. These figures compare how quickly each method improves during training and where it stabilizes in terms of episode reward.
+
+The logs were stored in separate monitor directories:
+
+.. code-block:: python
+
+   log_dir_dqn = 'logs/dqn/'
+   log_dir_sac = 'logs/sac/'
+   log_dir_a2c = 'logs/a2c/'
+   log_dir_ppo = 'logs/ppo/'
+   log_dir_ddpg = 'logs/ddpg/'
+   log_dir_td3 = 'logs/td3/'
+
+   log_dirs = [
+       log_dir_ppo,
+       log_dir_dqn,
+       log_dir_sac,
+       log_dir_a2c,
+       log_dir_ddpg,
+       log_dir_td3,
+   ]
+
+The combined plot can be produced with ``stable_baselines3.common.results_plotter`` as follows:
+
+.. code-block:: python
+
+   from stable_baselines3.common import results_plotter as abr
+   from stable_baselines3.common.results_plotter import X_WALLTIME, X_EPISODES, X_TIMESTEPS
+   import matplotlib.pyplot as plt
+
+   # wall-clock comparison
+   plt.figure(figsize=(20, 10))
+   abr.plot_results(log_dirs, 50_000, X_WALLTIME, "All RL Models")
+   plt.legend(['PPO', 'DQN', 'SAC', 'A2C', 'DDPG', 'TD3'], ncol=6, loc='lower right')
+   plt.tight_layout()
+   plt.show()
+
+   # episode-index comparison
+   plt.figure(figsize=(20, 10))
+   abr.plot_results(log_dirs, 50_000, X_EPISODES, "All RL Models")
+   plt.legend(['PPO', 'DQN', 'SAC', 'A2C', 'DDPG', 'TD3'], ncol=6, loc='lower right')
+   plt.tight_layout()
+   plt.show()
+
+   # timestep comparison
+   plt.figure(figsize=(20, 10))
+   abr.plot_results(log_dirs, 50_000, X_TIMESTEPS, "All RL Models")
+   plt.legend(['PPO', 'DQN', 'SAC', 'A2C', 'DDPG', 'TD3'], ncol=6, loc='lower right')
+   plt.tight_layout()
+   plt.show()
+
+.. note::
+
+   The red curve in the code above comes from ``logs/a2c/``. If the legend is written as ``A3C`` in a figure caption or notebook cell, that is just a label mismatch unless you actually trained a separate A3C implementation outside Stable-Baselines3.
+
+Wall-clock reward comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. figure:: ../PLOT/graphs/walltime.png
+   :alt: RL model reward comparison versus wall-clock training time
+   :width: 95%
+   :align: center
+
+   Episode reward versus wall-clock training time for PPO, DQN, SAC, A2C, DDPG, and TD3.
+
+The wall-time plot answers a practical question: **which model reaches a good policy fastest in real elapsed time?** DDPG and TD3 climb almost immediately to the top reward band near 11k, while SAC also improves very quickly but settles slightly lower. PPO starts much lower and needs more elapsed time to approach the top cluster. DQN improves in stages, showing slower early learning than the best continuous-control methods. The red curve, labeled A3C in the supplied figure but sourced from ``logs/a2c/``, plateaus early around 7k and clearly underperforms the others. What this means for ABR is that actor-critic methods with replay and continuous-action optimization can discover strong bitrate-control policies much faster than the simpler on-policy baseline here.
+
+Reward comparison by episodes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. figure:: ../PLOT/graphs/episodes.png
+   :alt: RL model reward comparison versus episodes
+   :width: 95%
+   :align: center
+
+   Episode reward versus training episodes for PPO, DQN, SAC, A2C, DDPG, and TD3.
+
+The episode-index view normalizes away raw wall-clock speed and instead shows how reward evolves as more rollouts are collected. DDPG and TD3 still occupy the top region almost from the beginning, which suggests that their advantage is not only computational but also sample-efficiency on this environment. SAC reaches high performance early, but with a bit more variance and a slightly lower ceiling. DQN makes a sharp jump around the middle of training, indicating delayed but meaningful value-function improvement. PPO rises more gradually and steadily. The A2C/A3C-labeled run again saturates much earlier than the other agents. For ABR, this suggests that continuous-control agents are better at quickly internalizing the bitrate–rebuffer–smoothness tradeoff from limited interaction data.
+
+Reward comparison by timesteps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. figure:: ../PLOT/graphs/timesteps.png
+   :alt: RL model reward comparison versus environment timesteps
+   :width: 95%
+   :align: center
+
+   Episode reward versus environment timesteps for PPO, DQN, SAC, A2C, DDPG, and TD3.
+
+The timestep plot is usually the fairest learning-curve view because it compares algorithms against the same amount of environment interaction. The ranking is consistent with the other two panels: DDPG and TD3 are strongest overall, SAC remains highly competitive, PPO improves steadily into the upper-middle range, DQN catches up after a slower start, and the A2C/A3C-labeled run stays well below the top group. In ABR terms, the leading methods are the ones that most quickly learn a control policy that balances video quality against rebuffering risk and abrupt bitrate switches. When timesteps are limited, these plots suggest prioritizing TD3, DDPG, or SAC before investing heavily in weaker baselines.
+
+Interpretation and practical takeaway
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Taken together, the three panels tell a consistent story. PPO is stable and eventually competitive, but it is not the fastest learner in this setup. DQN can become strong, yet it improves more abruptly and later. SAC is consistently good and robust. DDPG and TD3 dominate the reward curves, especially early, which makes them attractive choices when training budget is limited or when rapid policy iteration matters. The weakest run is the red ``logs/a2c/`` curve, so it should be treated as a lower baseline rather than a target. For an ABR study, these plots support the claim that off-policy actor-critic methods with continuous action outputs are especially effective when the final bitrate decision is derived from a richer continuous control signal and then mapped into the bitrate ladder.
+
 References
 ----------
 

@@ -9,16 +9,27 @@ This repository contains Adaptive Bitrate (ABR) algorithms implemented in multip
 
 .. toctree::
    :maxdepth: 2
+   :caption: StandardABR Algorithms
 
    classic
    bola
-   dynamic   
-   mpc 
-   remote  
+   dynamic
+   mpc
+   remote
+
+.. toctree::
+   :maxdepth: 2
+   :caption: RL-based
+
    dqn
    pensieve
    ppo
 
+.. toctree::
+   :maxdepth: 2
+   :caption: LLM-based
+
+   llm
 
 ABR algorithms:
 -----------
@@ -41,7 +52,7 @@ RL ABR algorithms:
 - **DQN**: Double-DQN value-based ABR (this repo’s training + server implementation).
 
 
-Algorithm can be found here...
+Plugins
 -----------
 
 - SABRE plugins: ``SIM/SABRE/algo/*.py`` (Python)

@@ -1,5 +1,5 @@
-MPC (FastMPC and RobustMPC)
-==========================
+FastMPC
+=======
 
 # Reproduction Attempt of [Yin et al.](https://web.stanford.edu/class/cs244/papers/videostreaming-sigcomm2015.pdf)
 
@@ -110,9 +110,8 @@ Simulation loop details (per candidate sequence):
 - smoothness penalty is the sum of absolute bitrate changes 
 
 
-Algorithm 2: RobustMPC (paper and this repo)
---------------------------------------------
-
+RobustMPC
+=========
 The SIGCOMM’15 paper defines RobustMPC as optimizing worst-case QoE under bounded throughput,
 and shows it is equivalent to running MPC with the **lower-bound throughput**. :contentReference[oaicite:25]{index=25}
 
