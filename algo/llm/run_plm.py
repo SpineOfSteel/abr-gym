@@ -62,7 +62,12 @@ def load_model(args, model, model_dir):
         model.plm.load_adapter(model_dir, adapter_name='default', device_map="auto", offload_folder="offload")
         # load other modules except plm
         # Determine the mapping device based on your arguments
-        map_location = torch.device('cpu') if args.device == 'cpu' else None
+        # Create a robust map_location
+        if args.device == 'cpu':
+            map_location = torch.device('cpu')
+        else:
+            # This automatically maps any saved GPU index (like 2) to your current GPU (0)
+            map_location = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Load the state dict with the conditional map_location
         model.modules_except_plm.load_state_dict(
@@ -125,7 +130,7 @@ def adapt(args, model, exp_dataset, exp_dataset_info, eval_env_settings, checkpo
 
 def test(args, model, exp_dataset_info, env_settings, model_dir, result_dir, test_process_reward_fn):
     model = load_model(args, model, model_dir)
-    print('Load model from:', model_dir)
+    print('Loaded model from:', model_dir)
     target_return = exp_dataset_info.max_return * args.target_return_scale
     results = test_on_env(args, model, result_dir, env_settings, target_return, args.trace_num, test_process_reward_fn, seed=args.seed)
     print(results)
