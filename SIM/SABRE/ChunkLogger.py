@@ -21,7 +21,7 @@ class ChunkLogger:
         dir.mkdir(parents=True, exist_ok=True)
         print('OUT>>', dir)
         
-        self.f = open(f'{dir}\\{chunk_log}', "w", encoding="utf-8")
+        self.f = open(f'{dir}//{chunk_log}', "w", encoding="utf-8")
         self.start_ts = start_ts
         self.last_bitrate_kbps: Optional[float] = None
 
