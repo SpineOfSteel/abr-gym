@@ -18,7 +18,7 @@ class Config:
     }
 
     video_size_dirs = {
-        'video1': '/content/drive/MyDrive/abr-gym/netllm/video',
+        'video1': '/content/drive/MyDrive/abr-gym/netllm/video/',
         'video2': _base_dir + 'data/videos/video2_sizes/',
     }
 
@@ -94,3 +94,4 @@ class Config:
 
 
 cfg = Config()
+
