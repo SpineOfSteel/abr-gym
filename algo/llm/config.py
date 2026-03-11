@@ -22,7 +22,7 @@ class Config:
         'video2': _base_dir + 'data/videos/video2_sizes/',
     }
 
-    results_dir = '/content/abr-gym/DATASET/artifacts/tmp'
+    results_dir = '/content/abr-gym/DATASET/artifacts/tmp/'
     exp_pools_dir = '/content/drive/MyDrive/abr-gym/netllm/exp_pool.pkl'
 
     # plm special
