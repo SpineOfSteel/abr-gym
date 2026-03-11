@@ -59,9 +59,15 @@ def save_model(args, model, save_dir):
 def load_model(args, model, model_dir):
     if args.rank > 0:
         # load lora weights
-        model.plm.load_adapter(model_dir, adapter_name='default')
+        model.plm.load_adapter(model_dir, adapter_name='default', device_map="auto", offload_folder="offload")
         # load other modules except plm
-        model.modules_except_plm.load_state_dict(torch.load(os.path.join(model_dir, 'modules_except_plm.bin')))
+        # Determine the mapping device based on your arguments
+        map_location = torch.device('cpu') if args.device == 'cpu' else None
+
+        # Load the state dict with the conditional map_location
+        model.modules_except_plm.load_state_dict(
+            torch.load(os.path.join(model_dir, 'modules_except_plm.bin'), map_location=map_location)
+        )
     else:
         # lora is disabled, load whole model
         model.load_state_dict(torch.load(os.path.join(model_dir, 'model.bin')))
@@ -156,6 +162,8 @@ def run(args):
         'fixed': args.fixed_order,
         'trace_num': args.trace_num,
     }
+    #print(env_settings)
+    #exit()
 
     # 3. create training dataset, fetch info
     exp_pool = pickle.load(open(args.exp_pool_path, 'rb'))
@@ -197,10 +205,9 @@ def run(args):
     # extract training experience pool information
     train_exp_pool_info = args.exp_pool_path.split('/')[-4:-1]
     train_exp_pool_info = '_'.join(train_exp_pool_info)
-    models_dir = os.path.join(cfg.plm_ft_dir, f'{args.plm_type}_{args.plm_size}', train_exp_pool_info + f'_ss_{args.sample_step}', f'rank_{args.rank}_w_{args.w}_gamma_{args.gamma}_sfd_{args.state_feature_dim}'\
+    models_dir = os.path.join(cfg.plm_ft_dir, f'XP{args.plm_type}_{args.plm_size}', train_exp_pool_info + f'_ss_{args.sample_step}', f'rank_{args.rank}_w_{args.w}_gamma_{args.gamma}_sfd_{args.state_feature_dim}'\
                               f'_lr_{args.lr}_wd_{args.weight_decay}_warm_{args.warmup_steps}_epochs_{args.num_epochs}_seed_{args.seed}')
-    results_dir = os.path.join(cfg.results_dir, f'{args.trace}_{args.video}', f'trace_num_{args.trace_num}_fixed_{args.fixed_order}', f'{args.plm_type}_{args.plm_size}',
-                               f'early_stop_{args.which_layer}_rank_{args.rank}_w_{args.w}_gamma_{args.gamma}_tgt_scale_{args.target_return_scale}_seed_{args.seed}')
+    results_dir = cfg.results_dir
     checkpoint_dir = os.path.join(models_dir, f'early_stop_{args.which_layer}_checkpoint')
     best_model_dir = os.path.join(models_dir, f'early_stop_{args.which_layer}_best_model')
 
@@ -227,7 +234,7 @@ def run(args):
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         model_dir = args.model_dir if args.model_dir is not None else best_model_dir
-        assert os.path.exists(model_dir), f'Model weight dir {model_dir} does not exist.'
+        assert os.path.exists(model_dir), f'Model weight dir {model_dir} does not exist.'        
         test(args, rl_policy, exp_dataset_info, env_settings, model_dir, results_dir, process_reward)
 
 
