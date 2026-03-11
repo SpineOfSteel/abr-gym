@@ -1,13 +1,12 @@
 # CustomAbr.py
-# Simple throughput-based ABR plugin for refactored sab.py
 
 # When sab.py is executed as a script, plugin symbols live in __main__.
 # Fallback import supports running this in other contexts/tests.
 try:
-    from __main__ import register_abr, AbrBase, AbrDecision, AbrContext
+    from __main__ import math, Dict,  Optional, Type, register_abr, AbrBase, AbrDecision, AbrContext, DownloadProgress
 except ImportError:
-    from sab import register_abr, AbrBase, AbrDecision, AbrContext  # optional fallback
-import math
+    from sab import register_abr, AbrBase, AbrDecision, AbrContext, DownloadProgress  # optional fallback
+
 
 class BolaBase(AbrBase):
     def __init__(self, cfg: Dict, ctx: AbrContext):
