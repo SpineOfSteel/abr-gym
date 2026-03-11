@@ -12,26 +12,25 @@ class Config:
     }
     
     trace_dirs = {
-        'fcc-train': '/content/abr-gym/DATASET/tmp/train/fcc-train',
-        'fcc-valid': '/content/abr-gym/DATASET/tmp/valid/fcc-valid',
-        'fcc-test': '/content/abr-gym/DATASET/tmp/test/fcc-test'
+        'fcc-train': '/content/drive/MyDrive/abr-gym/netllm/train/fcc-train',
+        'fcc-valid': '/content/drive/MyDrive/abr-gym/netllm/valid/fcc-valid',
+        'fcc-test': '/content/drive/MyDrive/abr-gym/netllm/test/fcc-test'
     }
 
     video_size_dirs = {
-        'video1': '/content/abr-gym/DATASET/tmp/video',
+        'video1': '/content/drive/MyDrive/abr-gym/netllm/video',
         'video2': _base_dir + 'data/videos/video2_sizes/',
     }
 
-    artifacts_dir = _base_dir + 'artifacts/'
-    results_dir = artifacts_dir + 'results/'
-    exp_pools_dir = artifacts_dir + 'exp_pools/'
+    results_dir = '/content/abr-gym/DATASET/artifacts/tmp'
+    exp_pools_dir = '/content/drive/MyDrive/abr-gym/netllm/exp_pool.pkl'
 
     # plm special
     plm_types = ['gpt2', 'llama', 'llava', 't5-lm', 'opt', 'mistral']
     plm_sizes = ['xxs', 'xs', 'small', 'base', 'large', 'xl', 'xxl']  # note that the actual size of plm is dependent on the type of plm. 
                                                          # for example, for llama, 'base' is 7b, while for gpt2, 'base' is 340M. you can specify it yourself.
     plm_dir = '/content/drive/MyDrive/abr-gym/huggingface_models/Llama-2-7b-hf'
-    plm_ft_dir = _base_dir + 'data/ft_plms'
+    plm_ft_dir = '/content/drive/MyDrive/abr-gym/try_llama/try_llama2_7b'
     plm_embed_sizes = {
         'gpt2': {
             'base': 1024,
