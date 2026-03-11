@@ -1,8 +1,11 @@
 # CustomAbr.py
 # Simple throughput-based ABR plugin for refactored sab.py
-
 # When sab.py is executed as a script, plugin symbols live in __main__.
 # Fallback import supports running this in other contexts/tests.
+
+# HOW TO USE? 
+# python SIM\SABRE\sab.py --plugin algo/rb.py -a rb -v -n 'DATASET/NETWORK/4Glogs_lum/logs.parquet' -m 'DATASET\\MOVIE\\movie_4g.json'
+
 try:
     from __main__ import register_abr, AbrBase, AbrDecision, AbrContext
 except ImportError:

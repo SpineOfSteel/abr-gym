@@ -1,12 +1,20 @@
+# MARK COPYRIGHTS
+
 from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import math
+import os
+
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import  Dict,  Optional, Type
+
+from DataModel import AbrContext, Buffer, DownloadProgress, Manifest, NetworkPeriod, ReactionTracker, SimStats
+from NetworkModel import NetworkModel
+from ChunkLogger import ChunkLogger
+from AbrInterface import AbrBase, AbrDecision
 
 
 # ----------------------------- registries -----------------------------
@@ -37,442 +45,7 @@ def load_plugin(path: str) -> None:
     spec.loader.exec_module(mod)  # plugin is expected to call @register_abr / @register_avg
 
 
-# ----------------------------- models -----------------------------
-
-@dataclass(frozen=True)
-class Manifest:
-    segment_time_ms: float
-    bitrates_kbps: List[float]
-    utilities: List[float]
-    segments_bits: List[List[int]]  # segments_bits[seg_idx][q] -> bits
-
-    @staticmethod
-    def from_json(path: str, movie_length_s: Optional[float] = None) -> "Manifest":
-        obj = json.loads(Path(path).read_text(encoding="utf-8"))
-
-        seg_time = float(obj["segment_duration_ms"])
-        if seg_time <= 0:
-            raise ValueError(f"Invalid segment_duration_ms={seg_time} in {path}")
-
-        bitrates = list(map(float, obj["bitrates_kbps"]))
-        if not bitrates or any(b <= 0 for b in bitrates):
-            raise ValueError(f"Invalid bitrates_kbps in {path}: {bitrates}")
-
-        u0 = -math.log(bitrates[0])
-        utilities = [math.log(b) + u0 for b in bitrates]
-
-        segs = obj["segment_sizes_bits"]  # list[list[int]]
-        if not segs:
-            raise ValueError(f"No segment_sizes_bits in {path}")
-
-        if movie_length_s is not None:
-            l1 = len(segs)
-            l2 = math.ceil(movie_length_s * 1000 / seg_time)
-            rep = math.ceil(l2 / l1)
-            segs = (segs * rep)[:l2]
-
-        return Manifest(segment_time_ms=seg_time, bitrates_kbps=bitrates, utilities=utilities, segments_bits=segs)
-
-
-@dataclass(frozen=True)
-class NetworkPeriod:
-    duration_ms: float
-    bandwidth_kbps: float
-    latency_ms: float
-
-    @staticmethod
-    def from_json(path: str, multiplier: float = 1.0) -> List["NetworkPeriod"]:
-        obj = json.loads(Path(path).read_text(encoding="utf-8"))
-        out: List[NetworkPeriod] = []
-        for p in obj:
-            dur = float(p["duration_ms"])
-            if dur <= 0:
-                # Drop invalid periods so the simulator always advances time.
-                continue
-
-            bw = float(p["bandwidth_kbps"]) * multiplier
-            lat = float(p["latency_ms"])
-
-            if bw < 0 or lat < 0:
-                raise ValueError(f"Invalid network period (negative bw/lat): {p}")
-
-            out.append(NetworkPeriod(duration_ms=dur, bandwidth_kbps=bw, latency_ms=lat))
-
-        if not out:
-            raise ValueError(
-                f"Network trace '{path}' became empty after filtering duration_ms<=0. "
-                f"Fix the trace (duration_ms must be > 0)."
-            )
-        return out
-
-
-@dataclass(frozen=True)
-class DownloadProgress:
-    index: int
-    quality: int
-    size_bits: float
-    downloaded_bits: float
-    time_ms: float
-    time_to_first_bit_ms: float
-    abandon_to_quality: Optional[int] = None
-
-
-@dataclass
-class Buffer:
-    """Stores qualities; fcc_ms is 'first chunk consumed' inside first segment."""
-    manifest: Manifest
-    contents: List[int] = field(default_factory=list)
-    fcc_ms: float = 0.0
-
-    def level_ms(self) -> float:
-        return self.manifest.segment_time_ms * len(self.contents) - self.fcc_ms
-
-    def clear(self) -> None:
-        self.contents.clear()
-        self.fcc_ms = 0.0
-
-
-@dataclass
-class ReactionTracker:
-    """Tracks 'reaction time' to upward sustainable network quality."""
-    max_buffer_ms: float
-    pending: List[List[float]] = field(default_factory=list)  # [time_ms, target_q, (optional) reached_time_ms]
-    total_reaction_ms: float = 0.0
-
-    def _process_matured(self, now_ms: float) -> None:
-        cutoff = now_ms - self.max_buffer_ms
-        while self.pending and self.pending[0][0] < cutoff:
-            p = self.pending.pop(0)
-            reaction = self.max_buffer_ms if len(p) == 2 else min(self.max_buffer_ms, p[2] - p[0])
-            self.total_reaction_ms += reaction
-
-    def on_network_quality_change(self, now_ms: float, new_q: int, prev_q: Optional[int], buffer_contents: List[int]) -> None:
-        self._process_matured(now_ms)
-        if prev_q is None or new_q <= prev_q:
-            return
-
-        # mark any pending switch-up done if quality drops below its target
-        for p in self.pending:
-            if len(p) == 2 and int(p[1]) > new_q:
-                p.append(now_ms)
-
-        # ignore if buffer already has >= new_q, or if already pending
-        if any(new_q <= q for q in buffer_contents):
-            return
-        if any(len(p) >= 2 and new_q <= int(p[1]) for p in self.pending):
-            return
-
-        self.pending.append([now_ms, float(new_q)])
-
-    def on_played_quality(self, now_ms: float, q: int) -> None:
-        for p in self.pending:
-            if len(p) == 2 and q >= int(p[1]):
-                p.append(now_ms)
-
-    def on_time_advanced(self, now_ms: float) -> None:
-        self._process_matured(now_ms)
-
-
-@dataclass
-class SimStats:
-    rebuffer_event_count: int = 0
-    rebuffer_time_ms: float = 0.0
-    played_utility: float = 0.0
-    played_bitrate: float = 0.0
-    total_play_time_ms: float = 0.0
-    total_bitrate_change: float = 0.0
-    total_log_bitrate_change: float = 0.0
-    last_played: Optional[int] = None
-
-    overestimate_count: int = 0
-    overestimate_avg: float = 0.0
-    goodestimate_count: int = 0
-    goodestimate_avg: float = 0.0
-    estimate_avg: float = 0.0
-
-    rampup_origin_ms: float = 0.0
-    rampup_time_ms: Optional[float] = None
-
-
-@dataclass
-class AbrContext:
-    manifest: Manifest
-    buffer: Buffer
-    max_buffer_ms: float
-    throughput_est: Optional[float]  # bits/ms
-    latency_est: Optional[float]     # ms
-    sustainable_quality: Optional[int]
-    rampup_threshold: Optional[int]
-    stats: SimStats
-
-
-# ----------------------------- network model -----------------------------
-
-class NetworkModel:
-    """
-    Time is advanced only by NetworkModel (delay/download); simulator then depletes playback buffer for same duration.
-    """
-    min_progress_size_bits = 12000
-    min_progress_time_ms = 50
-
-    def __init__(self, trace: List[NetworkPeriod], manifest: Manifest, verbose: bool):
-        self.trace = trace
-        self.manifest = manifest
-        self.verbose = verbose
-
-        self.idx = -1
-        self.time_to_next_ms = 0.0
-        self.time_ms = 0.0
-        self.sustainable_quality: Optional[int] = None
-
-        self._next_period()
-
-    def _ensure_period_ready(self) -> None:
-        """
-        Critical fix: time_to_next_ms can become exactly 0 after consuming a period boundary.
-        If we don't advance to the next period, loops can stall forever (b==0,t==0 cases).
-        """
-        guard = 0
-        while self.time_to_next_ms <= 0.0:
-            self._next_period()
-            guard += 1
-            if guard > len(self.trace) + 1:
-                raise RuntimeError("NetworkModel stuck: non-positive period durations or invalid trace.")
-
-    def _next_period(self) -> None:
-        self.idx = (self.idx + 1) % len(self.trace)
-        self.time_to_next_ms = float(self.trace[self.idx].duration_ms)
-
-        # clamp latency factor to [0,1] to avoid negative effective bandwidth
-        lat = self.trace[self.idx].latency_ms
-        lat_factor = 1.0 - (lat / self.manifest.segment_time_ms)
-        if lat_factor < 0.0:
-            lat_factor = 0.0
-        eff_bw = self.trace[self.idx].bandwidth_kbps * lat_factor
-
-        prev = self.sustainable_quality
-        q = 0
-        for i in range(1, len(self.manifest.bitrates_kbps)):
-            if self.manifest.bitrates_kbps[i] > eff_bw:
-                break
-            q = i
-        self.sustainable_quality = q
-
-        if self.verbose:
-            dur = self.trace[self.idx].duration_ms
-            print(
-                f"[{round(self.time_ms)}] Network: bw={self.trace[self.idx].bandwidth_kbps:.0f},"
-                f"lat={lat:.0f},dur={dur:.0f}  (q={q}: bitrate={self.manifest.bitrates_kbps[q]:.0f})"
-            )
-
-    def _advance_periods(self, dt_ms: float) -> None:
-        """Advance network time by dt_ms, crossing one or more network periods."""
-        while dt_ms > 0:
-            # If we're exactly on a boundary, move forward so time always progresses.
-            if self.time_to_next_ms <= 0:
-                self._next_period()
-                continue
-
-            if dt_ms < self.time_to_next_ms:
-                self.time_to_next_ms -= dt_ms
-                self.time_ms += dt_ms
-                return
-
-            # Consume remainder of the current period, then advance.
-            dt_ms -= self.time_to_next_ms
-            self.time_ms += self.time_to_next_ms
-            self._next_period()
-
-
-    def delay(self, dt_ms: float) -> None:
-        self._advance_periods(dt_ms)
-
-    def _latency_delay(self, units: float) -> float:
-        total = 0.0
-        while units > 0:
-            self._ensure_period_ready()
-            lat = self.trace[self.idx].latency_ms
-            t = units * lat
-            if t <= self.time_to_next_ms:
-                total += t
-                self._advance_periods(t)
-                units = 0
-            else:
-                total += self.time_to_next_ms
-                if lat > 0:
-                    units -= self.time_to_next_ms / lat
-                self._advance_periods(self.time_to_next_ms)
-        return total
-
-    def _download_bits(self, bits: float) -> float:
-        total = 0.0
-        while bits > 0:
-            self._ensure_period_ready()
-            bw = self.trace[self.idx].bandwidth_kbps  # (kbit/s) == (bit/ms) numerically
-            if bw <= 0:
-                # No capacity in this period: advance to next period in time.
-                total += self.time_to_next_ms
-                self._advance_periods(self.time_to_next_ms)
-                continue
-
-            can = self.time_to_next_ms * bw
-            if bits <= can:
-                t = bits / bw
-                total += t
-                self._advance_periods(t)
-                bits = 0
-            else:
-                total += self.time_to_next_ms
-                bits -= can
-                self._advance_periods(self.time_to_next_ms)
-        return total
-
-    def _minimal_latency_delay(self, units: float, min_time_ms: float) -> Tuple[float, float]:
-        got_units = 0.0
-        got_time = 0.0
-        while units > 0 and min_time_ms > 0:
-            self._ensure_period_ready()
-            lat = self.trace[self.idx].latency_ms
-            t = units * lat
-            if t <= min_time_ms and t <= self.time_to_next_ms:
-                u = units
-                self._advance_periods(t)
-            elif min_time_ms <= self.time_to_next_ms:
-                t = min_time_ms
-                u = (t / lat) if lat > 0 else units  # if lat==0, consume all units instantly
-                self._advance_periods(t)
-            else:
-                t = self.time_to_next_ms
-                u = (t / lat) if lat > 0 else units  # if lat==0, consume all units instantly
-                self._advance_periods(t)
-
-            got_units += u
-            got_time += t
-            units -= u
-            min_time_ms -= t
-
-        return got_units, got_time
-
-    def _minimal_download(self, bits_left: float, min_bits: float, min_time_ms: float) -> Tuple[float, float]:
-        got_bits = 0.0
-        got_time = 0.0
-
-        while bits_left > 0 and (min_bits > 0 or min_time_ms > 0):
-            self._ensure_period_ready()
-            bw = self.trace[self.idx].bandwidth_kbps
-
-            if bw > 0:
-                need = max(min_bits, min_time_ms * bw)
-                to_next = self.time_to_next_ms * bw
-
-                # If to_next is 0 (boundary), ensure_period_ready() should have prevented it,
-                # but keep a hard guard anyway.
-                if to_next <= 0:
-                    self._ensure_period_ready()
-                    continue
-
-                if bits_left <= need and bits_left <= to_next:
-                    b = bits_left
-                    t = b / bw
-                    self._advance_periods(t)
-                elif need <= to_next:
-                    b = need
-                    t = b / bw
-                    min_bits = 0
-                    min_time_ms = 0
-                    self._advance_periods(t)
-                else:
-                    b = to_next
-                    t = self.time_to_next_ms
-                    self._advance_periods(t)
-            else:
-                # bw == 0: consume time to next period (or min_time if smaller), no bits delivered.
-                b = 0.0
-                t = min(self.time_to_next_ms, max(0.0, min_time_ms)) if min_time_ms > 0 else self.time_to_next_ms
-                self._advance_periods(t)
-
-            # progress accounting
-            got_bits += b
-            got_time += t
-            bits_left -= b
-            min_bits -= b
-            min_time_ms -= t
-
-            # Absolute deadlock guard: if neither bits nor time advanced, force a period step
-            if b == 0.0 and t == 0.0:
-                self.time_to_next_ms = 0.0
-                self._ensure_period_ready()
-
-        return got_bits, got_time
-
-    def download(
-        self,
-        bits: float,
-        seg_idx: int,
-        quality: int,
-        buffer_level_ms: float,
-        check_abandon: Optional[Callable[[DownloadProgress, float], Optional[int]]] = None,
-    ) -> DownloadProgress:
-        if bits <= 0:
-            return DownloadProgress(seg_idx, quality, 0, 0, 0, 0, None)
-
-        if not check_abandon or (self.min_progress_time_ms <= 0 and self.min_progress_size_bits <= 0):
-            ttfb = self._latency_delay(1)
-            t = ttfb + self._download_bits(bits)
-            return DownloadProgress(seg_idx, quality, bits, bits, t, ttfb, None)
-
-        total_t = 0.0
-        total_b = 0.0
-        min_t = self.min_progress_time_ms
-        min_b = self.min_progress_size_bits
-
-        if self.min_progress_size_bits > 0:
-            ttfb = self._latency_delay(1)
-            total_t += ttfb
-            min_t -= total_t
-            delay_units = 0.0
-        else:
-            ttfb = None
-            delay_units = 1.0
-
-        abandon_to: Optional[int] = None
-
-        # stall guard
-        guard_iters = 0
-
-        while total_b < bits and abandon_to is None:
-            guard_iters += 1
-            if guard_iters > 2_000_000:
-                raise RuntimeError("Network download appears stuck (too many iterations). Check trace durations/bandwidth.")
-
-            prev_b, prev_t = total_b, total_t
-
-            if delay_units > 0:
-                units, t = self._minimal_latency_delay(delay_units, min_t)
-                total_t += t
-                delay_units -= units
-                min_t -= t
-                if delay_units <= 0:
-                    ttfb = total_t
-
-            if delay_units <= 0:
-                b, t = self._minimal_download(bits - total_b, min_b, min_t)
-                total_t += t
-                total_b += b
-
-            if total_b == prev_b and total_t == prev_t:
-                # hard escape: force advance
-                self.time_to_next_ms = 0.0
-                self._ensure_period_ready()
-
-            dp = DownloadProgress(seg_idx, quality, bits, total_b, total_t, (ttfb or 0.0), None)
-            if total_b < bits:
-                abandon_to = check_abandon(dp, max(0.0, buffer_level_ms - total_t))
-                min_t = self.min_progress_time_ms
-                min_b = self.min_progress_size_bits
-
-        return DownloadProgress(seg_idx, quality, bits, total_b, total_t, (ttfb or 0.0), abandon_to)
-
+# ----------------------- throughput
 
 # ----------------------------- throughput estimators -----------------------------
 
@@ -541,69 +114,6 @@ class Ewma(ThroughputHistory):
             est_t = t if est_t is None else min(est_t, t)
             est_l = l if est_l is None else max(est_l, l)
         return float(est_t), float(est_l)
-
-
-# ----------------------------- ABR interface -----------------------------
-
-@dataclass(frozen=True)
-class AbrDecision:
-    quality: int
-    delay_ms: float = 0.0
-
-class AbrBase:
-    NAME = "base"
-    def __init__(self, cfg: Dict, ctx: AbrContext):
-        self.cfg = cfg
-
-    def first_quality(self, ctx: AbrContext) -> int:
-        return 0
-
-    def select(self, ctx: AbrContext, seg_idx: int) -> AbrDecision:
-        raise NotImplementedError
-
-    def on_delay(self, ctx: AbrContext, delay_ms: float) -> None:
-        pass
-
-    def on_download(self, ctx: AbrContext, dp: DownloadProgress, is_replacement: bool) -> None:
-        pass
-
-    def on_seek(self, ctx: AbrContext, where_ms: float) -> None:
-        pass
-
-    def check_abandon(self, ctx: AbrContext, progress: DownloadProgress, buffer_level_ms: float) -> Optional[int]:
-        return None
-
-    def quality_from_throughput(self, ctx: AbrContext, tput_bits_per_ms: float) -> int:
-        if tput_bits_per_ms <= 0:
-            return 0
-        p = ctx.manifest.segment_time_ms
-        lat = ctx.latency_est or 0.0
-        q = 0
-        while (q + 1 < len(ctx.manifest.bitrates_kbps) and
-               lat + p * ctx.manifest.bitrates_kbps[q + 1] / tput_bits_per_ms <= p):
-            q += 1
-        return q
-    
-    def quality_from_throughput2(self, ctx: AbrContext, seg_idx: int, tput_bits_per_ms: float) -> int:
-        if tput_bits_per_ms <= 0:
-            return 0
-
-        lat_ms = float(ctx.latency_est or 0.0)          # ms
-        buf_ms = float(ctx.buffer.level_ms())           # ms
-
-        GUARD_MS = 200.0                                 # small safety margin
-        budget_ms = max(0.0, 0.85 * buf_ms - GUARD_MS)
-
-        q = 0
-        while q + 1 < len(ctx.manifest.bitrates_kbps):
-            seg_bits = float(ctx.manifest.segments_bits[seg_idx][q + 1])
-            dl_ms = seg_bits / tput_bits_per_ms  # end-to-end estimate
-            if dl_ms > budget_ms:
-                break
-            q += 1
-        return q
-
-
 
 # ----------------------------- Replace strategies -----------------------------
 
@@ -921,9 +431,11 @@ def bits_per_ms(downloaded_bits: float, download_ms: float) -> float:
 
 def run_session(args: argparse.Namespace) -> None:
     manifest = Manifest.from_json(args.movie, args.movie_length)
-    trace = NetworkPeriod.from_json(args.network, args.network_multiplier)
-    chunk_logger = ChunkLogger(f'_CLIENT_LOGS\\log_{args.abr}_{args.chunk_log}', args.chunk_log_start_ts) if args.chunk_log else None
-    
+    trace = NetworkPeriod.from_json(args.network, 0, args.network_multiplier)
+    chunk_logger =  None
+    if args.chunk_folder!='' and args.chunk_log!='':
+        chunk_logger = ChunkLogger(args.chunk_folder, args.chunk_log, args.chunk_log_start_ts)
+        
     stats = SimStats(rampup_origin_ms=0.0)
     buffer = Buffer(manifest=manifest)
     tracker = ReactionTracker(max_buffer_ms=args.max_buffer * 1000.0)
@@ -1205,6 +717,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p.add_argument("--list", action="store_true", help="List available ABRs and averages.")
     p.add_argument("--chunk-log", default='.txt', help="Write per-chunk trace ")
+    p.add_argument("--chunk-folder", default='', help="folder for logs")
     p.add_argument("--chunk-log-start-ts", type=float, default='1608418125', help="If set, timestamp column = start_ts + simulated_time_s; else uses simulated_time_s.")
 
     p.add_argument("--shim", type=int, default=8333, help="List available ABRs and averages.")
@@ -1233,40 +746,6 @@ def main() -> None:
 
     run_session(args)
 
-
-M_IN_K = 1000.0
-REBUF_PENALTY = 32.0  #160.0
-SMOOTH_PENALTY = 1.0
-
-def compute_qoe_reward(bitrate_kbps: float, stall_s: float, last_bitrate_kbps: float | None) -> float:
-    bitrate_mbps = bitrate_kbps / M_IN_K
-    last_mbps = (last_bitrate_kbps / M_IN_K) if last_bitrate_kbps is not None else 0.0
-    return bitrate_mbps - REBUF_PENALTY * stall_s - SMOOTH_PENALTY * abs(bitrate_mbps - last_mbps)
-
-
-class ChunkLogger:
-    def __init__(self, path: str, start_ts: Optional[float]):
-        self.f = open(path, "w", encoding="utf-8")
-        self.start_ts = start_ts
-        self.last_bitrate_kbps: Optional[float] = None
-
-    def close(self) -> None:
-        self.f.close()
-
-    def log(self, sim_time_ms: float, bitrate_kbps: float, buffer_ms: float, stall_ms: float,
-            chunk_bits: float, download_ms: float) -> None:
-        ts_s = (self.start_ts + sim_time_ms / 1000.0) if self.start_ts is not None else (sim_time_ms / 1000.0)
-        stall_s = stall_ms / 1000.0
-        reward = compute_qoe_reward(bitrate_kbps, stall_s, self.last_bitrate_kbps)
-        self.last_bitrate_kbps = bitrate_kbps
-
-        chunk_bytes = chunk_bits / 8.0
-        buf_s = buffer_ms / 1000.0
-
-        self.f.write(
-            f"{ts_s:.2f}\t{bitrate_kbps:.0f}\t{buf_s:.6f}\t{stall_s:.3f}\t"
-            f"{chunk_bytes:.0f}\t{download_ms:.0f}\t{reward:.12g}\n"
-        )
 
 if __name__ == "__main__":
     main()

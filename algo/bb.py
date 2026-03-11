@@ -1,14 +1,16 @@
 # bb.py  (buffer-based ABR plugin)
-# python sab.py --plugin bb.py -a bb -n 4Glogs_lum\4g_trace_driving_50015_dr.json -m movie.json --chunk-log-start-ts 1608418123 --chunk-log log_BB_driving_4g -v
 # BBA-style buffer-based rule:
 # - If buffer <= reservoir: pick lowest quality
 # - If buffer >= reservoir + cushion: pick highest quality
 # - Else: linearly map buffer level to a quality index
 #
 # Optional: cap by throughput_est for safety (can disable by setting SAFETY_CAP = None)
+# HOW TO USE?
+# python SIM\SABRE\sab.py --plugin algo/bb.py -a bb -v -n 'DATASET/NETWORK/4Glogs_lum/logs.parquet' -m 'DATASET\\MOVIE\\movie_4g.json'
 
 try:
     from __main__ import register_abr, AbrBase, AbrDecision, AbrContext
+    print('here 1')
 except ImportError:
     from sab import register_abr, AbrBase, AbrDecision, AbrContext  # optional fallback
 
