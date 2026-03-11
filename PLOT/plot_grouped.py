@@ -1,10 +1,17 @@
 import os
 from pathlib import Path
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+
 import scipy.stats
 print(os.getcwd())
+
+from typing import Callable, Optional
+import pandas as pd
+
+from stable_baselines3.common.monitor import load_results
 
 
 plt.switch_backend('agg')
@@ -13,46 +20,44 @@ NUM_BINS = 500
 VIDEO_LEN = 48
 LW = 1.5
 
-SOURCE_LOG = '..\\DATASET\\TRACES\\norway_tram'
+SOURCE_LOG = '..\\DATASET\\TRACES\\norway'
 OUTPUT_DIR = './graphs'
 print(Path(SOURCE_LOG).exists())
 
-TRANSPORTS = ['tram', 'car', 'bus']
-SCHEMES = ['bb', 'rl', 'mpc', 'cmc', 'bola', 'netllm', 'quetra', 'genet', 'ppo']
-LABELS = ['BBA', 'Pensieve', 'RobustMPC', 'Comyco', 'BOLA', 'NetLLM', 'QUETRA', 'Genet', 'Pen-PPO']
-MARKERS = ['o', 'x', 'v', '^', '>', '<', 's', 'p', '*']
-COLORS = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F']
+TRANSPORTS = ['tram', 'car', 'bus','ferry','metro','train']
+SCHEMES = ['bb', 'bola', 'mpc',  'rl', 'ppo', 'netllm']
+LABELS = ['BBA', 'BOLA', 'RobustMPC','Pensieve',  'Pen-PPO',   'NetLLM']
+COLORS = ['#4E79A7', '#F28E2B', '#E15759', "#21EBDA", '#59A14F', "#FA12B4", '#B07AA1', '#FF9DA7', '#9C755F']
 
 
-def mean_confidence_interval(data, confidence=0.95):
-    a = np.asarray(data, dtype=float)
-    n = len(a)
-    if n == 0:
-        return np.nan, np.nan, np.nan
-    if n == 1:
-        return a[0], a[0], a[0]
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.t.ppf((1 + confidence) / 2.0, n - 1)
-    return m, m - h, m + h
 
 
-def detect_transport(path):
-    parts = [p.lower() for p in Path(path).parts]
-    for transport in TRANSPORTS:
-        if transport in parts:
-            return transport
-    return None
 
 
-def gather_files(root_dir, transport=None):
-    root = Path(root_dir)
-    if not root.exists():
-        return []
+#
+# LOG FILE PARSING AND METRIC CALCULATION
+#
+def collect_scheme_metrics(root_dir, transport=None):
+    metrics = {scheme: {'reward': [], 'bitrate': [], 'stall': [], 'smoothness': []} for scheme in SCHEMES}
     files = []
-    for path in root.rglob('*.txt'):
-        if transport is None or detect_transport(path) == transport:
-            files.append(path)
-    return sorted(files)
+    root = Path(root_dir)
+    if root.exists():
+        files = [path for path in root.rglob('*.txt') if transport is None or f'_{transport}_' in path.stem.lower()]
+        #print(files[0].stem.split('_')[-1], files[0])
+        files = sorted(files, key=lambda file: int(file.stem.split('_')[-1]))
+    
+        for path in files:
+            for scheme in SCHEMES:
+                if scheme in path.stem.lower():
+                    summary = summarize_metrics(parse_log_file(path))
+                    if summary is None:
+                        break
+                    metrics[scheme]['reward'].append(summary['mean_reward'])
+                    metrics[scheme]['bitrate'].append(summary['mean_bitrate'])
+                    metrics[scheme]['stall'].append(summary['stall_pct'])
+                    metrics[scheme]['smoothness'].append(summary['smoothness'])
+                    break
+    return metrics
 
 
 def parse_log_file(path):
@@ -90,86 +95,58 @@ def summarize_metrics(parsed):
     }
 
 
-def scheme_matches_file(scheme, path):
-    name = path.name.lower()
-    stem = path.stem.lower()
-    return scheme in name or scheme in stem
+
+#
+# PLOTTING
+#
+def main():
+    group_plots(SOURCE_LOG, transport=None)
+    for transport in TRANSPORTS:
+        group_plots(SOURCE_LOG, transport=transport)
+
+def group_plots(root_dir, transport=None):
+    metrics = collect_scheme_metrics(root_dir, transport=transport)
+    suffix = transport if transport else 'all'
+    outdir = Path(OUTPUT_DIR)
+    outdir.mkdir(parents=True, exist_ok=True)
+    skip = 3 if transport is None else 1
+    plot_tradeoff_scatter(metrics, 'bitrate', 'stall', str(outdir / f'baselines-{suffix}-tradeoff.png'), title=f'{suffix.upper()} (error plot)')
+    plot(metrics,'smoothness', 'Traces', 'Bitrate Smoothness', skip, str(outdir / f'baselines-{suffix}-sr.png'))
+    plot(metrics,'bitrate', 'Traces', 'Video Bitrate', skip, str(outdir / f'baselines-{suffix}-br.png'))
+    plot(metrics,'stall', 'Traces', 'Time Spent on Stall', skip, str(outdir / f'baselines-{suffix}-st.png'))
+    #plot(metrics,'reward', 'Traces', 'Reward', skip, str(outdir / f'baselines-{suffix}-rew.png'))
+    plot_qoe_cdf(metrics, str(outdir / f'baselines-{suffix}-qoe.png'), title_suffix=suffix.upper())
 
 
-def collect_scheme_metrics(root_dir, transport=None):
-    metrics = {scheme: {'reward': [], 'bitrate': [], 'stall': [], 'smoothness': []} for scheme in SCHEMES}
-    for path in gather_files(root_dir, transport=transport):
-        for scheme in SCHEMES:
-            if scheme_matches_file(scheme, path):
-                summary = summarize_metrics(parse_log_file(path))
-                if summary is None:
-                    break
-                metrics[scheme]['reward'].append(summary['mean_reward'])
-                metrics[scheme]['bitrate'].append(summary['mean_bitrate'])
-                metrics[scheme]['stall'].append(summary['stall_pct'])
-                metrics[scheme]['smoothness'].append(summary['smoothness'])
-                break
-    return metrics
 
-
-def style_axes(ax):
-    ax.grid(linestyle='--', linewidth=1.0, alpha=0.5)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-
-def plot_errorbar(xvals, yvals, xlabel, ylabel, output_path, invert_x=False, invert_y=False, xlim=None, ylim=None):
-    plt.rcParams['axes.labelsize'] = 15
-    matplotlib.rc('font', size=15)
-    fig, ax = plt.subplots(figsize=(6, 4))
-    plt.subplots_adjust(left=0.14, bottom=0.16, right=0.96, top=0.96)
-
-    y_high_max = None
+def plot(vals, metric, xlabel, ylabel, skip, output_path, invert_x=False, invert_y=False, xlim=None, ylim=None):
+    fig, ax = plt.subplots(figsize=(8, 5))    
     for idx, scheme in enumerate(SCHEMES):
-        xs = xvals[scheme]
-        ys = yvals[scheme]
-        if not xs or not ys:
-            continue
-        x_mean, x_low, x_high = mean_confidence_interval(xs)
-        y_mean, y_low, y_high = mean_confidence_interval(ys)
-        y_high_max = y_high if y_high_max is None else max(y_high_max, y_high)
-        ax.errorbar(
-            x_mean, y_mean,
-            xerr=x_high - x_mean,
-            yerr=y_high - y_mean,
-            color=COLORS[idx], marker=MARKERS[idx], markersize=10,
-            label=LABELS[idx], capsize=4
-        )
-        print(f'{scheme} {y_mean:.2f} {y_low:.2f} {y_high:.2f} {x_mean:.2f} {x_low:.2f} {x_high:.2f}')
+        ys = vals[scheme][metric]
+        avg_y = np.mean(ys)
+        
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    if ylim is not None:
-        ax.set_ylim(*ylim)
-    elif y_high_max is not None:
-        ax.set_ylim(max(0, y_high_max * 0.5), y_high_max * 1.01)
-    if xlim is not None:
-        ax.set_xlim(*xlim)
-    style_axes(ax)
-    ax.legend(fontsize=12, ncol=3, edgecolor='white', loc='best')
-    if invert_x:
-        ax.invert_xaxis()
-    if invert_y:
-        ax.invert_yaxis()
+        ys_down = ys[::skip]
+        xs = np.arange(len(ys_down))
+        
+        ax.plot(
+            xs, ys_down, 
+            color=COLORS[idx], 
+            label=f"{LABELS[idx]} (Mean: {avg_y:.2f})", 
+            linewidth=1.5,
+            antialiased=True,
+            zorder=3
+        )
+    fix_axes(ax, xlabel=xlabel, ylabel=ylabel, invert_x=invert_x, invert_y=invert_y, xlim=xlim, ylim=ylim)
+    ax.set_xticks(np.arange(min(xs), max(xs) + 1, 5))
     fig.savefig(output_path)
     plt.close(fig)
-
+   
 
 def plot_qoe_cdf(metrics, output_path, title_suffix=''):
-    plt.rcParams['axes.labelsize'] = 15
-    matplotlib.rc('font', size=15)
-    fig, ax = plt.subplots(figsize=(12, 3.5))
-    plt.subplots_adjust(left=0.06, bottom=0.16, right=0.96, top=0.96)
-
+    fig, ax = plt.subplots(figsize=(12, 5))
     for idx, scheme in enumerate(SCHEMES):
         rewards = metrics[scheme]['reward']
-        if not rewards:
-            continue
         values, base = np.histogram(rewards, bins=NUM_BINS)
         cumulative = np.cumsum(values)
         if cumulative[-1] == 0:
@@ -179,48 +156,170 @@ def plot_qoe_cdf(metrics, output_path, title_suffix=''):
                 label=f'{LABELS[idx]}: {np.mean(rewards):.2f}')
         print(f'{scheme}, {np.mean(rewards):.2f}')
 
-    ax.set_xlabel('QoE')
-    ax.set_ylabel('CDF')
+    
+    fix_axes(ax, xlabel='QoE', ylabel='CDF', title_suffix=title_suffix)
     ax.set_ylim(0.0, 1.01)
-    style_axes(ax)
-    ax.legend(fontsize=12, ncol=3, edgecolor='white', loc='lower right')
-    if title_suffix:
-        ax.set_title(title_suffix)
     fig.savefig(output_path)
     plt.close(fig)
+    
+
+def plot_tradeoff_scatter(metrics,x,y,output_path, title=None):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for idx, scheme in enumerate(SCHEMES):
+        m = metrics[scheme]
+        x_ = m[x]
+        y_ = m[y]
+        mx, my = np.mean(x_), np.mean(y_)
+        lx, hx = np.percentile(x_, [25, 75])
+        ly, hy = np.percentile(y_, [25, 75])
+
+        xerr = np.array([[max(0, mx - lx)], [max(0, hx - mx)]])
+        yerr = np.array([[max(0, my - ly)], [max(0, hy - my)]])
+        #print(xerr, yerr)
+        legend_label = f"{LABELS[idx]} ({mx:.2f}, {my:.2f})"
+        ax.errorbar(
+            mx, my,
+            xerr=xerr,
+            yerr=yerr,
+            fmt='o',
+            color=COLORS[idx],
+            capsize=4,
+            linewidth=1.5,
+             label=legend_label,
+        )
 
 
-def make_plots_for_group(root_dir, transport=None):
-    metrics = collect_scheme_metrics(root_dir, transport=transport)
-    suffix = transport if transport else 'all'
-    outdir = Path(OUTPUT_DIR)
-    outdir.mkdir(parents=True, exist_ok=True)
+    
+    fix_axes(ax, xlabel='bitrate', ylabel='stall ratio (%)', title_suffix=title)
+    ax.set_ylim(0.0, 1.01)
+    fig.savefig(output_path)
+    plt.close(fig)
+    
 
-    plot_errorbar(
-        {k: v['stall'] for k, v in metrics.items()},
-        {k: v['bitrate'] for k, v in metrics.items()},
-        'Time Spent on Stall (%)', 'Video Bitrate (mbps)',
-        str(outdir / f'baselines-{suffix}-br.png'), invert_x=True
-    )
-    plot_errorbar(
-        {k: v['stall'] for k, v in metrics.items()},
-        {k: v['smoothness'] for k, v in metrics.items()},
-        'Time Spent on Stall (%)', 'Bitrate Smoothness (mbps)',
-        str(outdir / f'baselines-{suffix}-sr.png'), invert_x=True, invert_y=True
-    )
-    plot_errorbar(
-        {k: v['smoothness'] for k, v in metrics.items()},
-        {k: v['bitrate'] for k, v in metrics.items()},
-        'Bitrate Smoothness (mbps)', 'Video Bitrate (mbps)',
-        str(outdir / f'baselines-{suffix}-bs.png'), invert_x=True
-    )
-    plot_qoe_cdf(metrics, str(outdir / f'baselines-{suffix}-qoe.png'), title_suffix=suffix.upper())
+def fix_axes(ax, xlabel='X', ylabel='Y', title_suffix='', invert_x=False, invert_y=False, xlim=None, ylim=None,):
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(linestyle='--', linewidth=1.0, alpha=0.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.legend(fontsize=10, ncol=2, edgecolor='white', loc='upper right')
+    if title_suffix:
+        ax.set_title(title_suffix)
+    
 
 
-def main():
-    make_plots_for_group(SOURCE_LOG, transport=None)
-    for transport in TRANSPORTS:
-        make_plots_for_group(SOURCE_LOG, transport=transport)
+X_TIMESTEPS = "timesteps"
+X_EPISODES = "episodes"
+X_WALLTIME = "walltime_hrs"
+POSSIBLE_X_AXES = [X_TIMESTEPS, X_EPISODES, X_WALLTIME]
+EPISODES_WINDOW = 100
+
+
+def rolling_window(array: np.ndarray, window: int) -> np.ndarray:
+    """
+    Apply a rolling window to a np.ndarray
+
+    :param array: the input Array
+    :param window: length of the rolling window
+    :return: rolling window on the input array
+    """
+    shape = array.shape[:-1] + (array.shape[-1] - window + 1, window)  # noqa: RUF005
+    strides = (*array.strides, array.strides[-1])
+    return np.lib.stride_tricks.as_strided(array, shape=shape, strides=strides)
+
+
+def window_func(var_1: np.ndarray, var_2: np.ndarray, window: int, func: Callable) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Apply a function to the rolling window of 2 arrays
+
+    :param var_1: variable 1
+    :param var_2: variable 2
+    :param window: length of the rolling window
+    :param func: function to apply on the rolling window on variable 2 (such as np.mean)
+    :return:  the rolling output with applied function
+    """
+    var_2_window = rolling_window(var_2, window)
+    function_on_var2 = func(var_2_window, axis=-1)
+    return var_1[window - 1 :], function_on_var2
+
+
+def ts2xy(data_frame: pd.DataFrame, x_axis: str) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Decompose a data frame variable to x and ys
+    (y = episodic return)
+
+    :param data_frame: the input data
+    :param x_axis: the x-axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :return: the x and y output
+    """
+    if x_axis == X_TIMESTEPS:
+        x_var = np.cumsum(data_frame.l.values)  # type: ignore[arg-type]
+        y_var = data_frame.r.values
+    elif x_axis == X_EPISODES:
+        x_var = np.arange(len(data_frame))
+        y_var = data_frame.r.values
+    elif x_axis == X_WALLTIME:
+        # Convert to hours
+        x_var = data_frame.t.values / 3600.0  # type: ignore[operator, assignment]
+        y_var = data_frame.r.values
+    else:
+        raise NotImplementedError(f"Unsupported {x_axis=}, please use one of {POSSIBLE_X_AXES}")
+    return x_var, y_var  # type: ignore[return-value]
+
+
+def plot_curves(
+    xy_list: list[tuple[np.ndarray, np.ndarray]], x_axis: str, title: str, figsize: tuple[int, int] = (8, 2)
+) -> None:
+    """
+    plot the curves
+
+    :param xy_list: the x and y coordinates to plot
+    :param x_axis: the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :param title: the title of the plot
+    :param figsize: Size of the figure (width, height)
+    """
+
+    plt.figure(title, figsize=figsize)
+    max_x = max(xy[0][-1] for xy in xy_list)
+    min_x = 0
+    for _, (x, y) in enumerate(xy_list):
+        plt.plot(x, y, label=f'Curve {_}') # Changed to plt.plot
+        # Do not plot the smoothed curve at all if the timeseries is shorter than window size.
+        if x.shape[0] >= EPISODES_WINDOW:
+            # Compute and plot rolling mean with window of size EPISODE_WINDOW
+            x, y_mean = window_func(x, y, EPISODES_WINDOW, np.mean)
+            plt.plot(x, y_mean)
+    plt.xlim(min_x, max_x)
+    plt.title(title)
+    plt.xlabel(x_axis)
+    plt.ylabel("Episode Rewards")
+    plt.tight_layout()
+
+
+def plot_results(
+    dirs: list[str], num_timesteps: Optional[int], x_axis: str, task_name: str, figsize: tuple[int, int] = (8, 2)
+) -> None:
+    """
+    Plot the results using csv files from ``Monitor`` wrapper.
+
+    :param dirs: the save location of the results to plot
+    :param num_timesteps: only plot the points below this value
+    :param x_axis: the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :param task_name: the title of the task to plot
+    :param figsize: Size of the figure (width, height)
+    """
+
+    data_frames = []
+    for folder in dirs:
+        data_frame = load_results(folder)
+        if num_timesteps is not None:
+            data_frame = data_frame[data_frame.l.cumsum() <= num_timesteps]
+        data_frames.append(data_frame)
+    xy_list = [ts2xy(data_frame, x_axis) for data_frame in data_frames]
+    plot_curves(xy_list, x_axis, task_name, figsize)
 
 
 if __name__ == '__main__':

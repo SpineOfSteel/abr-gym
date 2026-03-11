@@ -35,6 +35,7 @@ venv/
 .conda/
 pip-wheel-metadata/
 pip-log.txt
+tf_venv/
 
 # ----------------------------
 # OS / IDE
@@ -49,3 +50,6 @@ Thumbs.db
 # ----------------------------
 #*.log
 #SERVER_LOGS/
+google-chrome-stable_current_amd64.deb
+Genet/
+tmp/
