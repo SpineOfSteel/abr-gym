@@ -1,4 +1,6 @@
+# abrGym/runners/plm_runner.py
 from __future__ import annotations
+
 import subprocess
 import sys
 
@@ -13,12 +15,18 @@ def run_plm_test(args, meta, paths) -> None:
         sys.executable,
         str(paths.llm_entry),
         "--test",
-        "--plm-type", meta["plm_type"],
-        "--plm-size", args.plm_size,
-        "--rank", str(args.rank),
-        "--device", args.device,
-        "--model-dir", args.model_dir,
-        "--exp-pool-path", args.exp_pool_path,
+        "--plm-type",
+        meta["plm_type"],
+        "--plm-size",
+        args.plm_size,
+        "--rank",
+        str(args.rank),
+        "--device",
+        args.device,
+        "--model-dir",
+        args.model_dir,
+        "--exp-pool-path",
+        args.exp_pool_path,
     ]
 
     subprocess.run(cmd, check=True)

@@ -12,7 +12,7 @@ import numpy as np
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-import SERVER.ppo.ppo2 as network  # keep ppo2.py unchanged
+import ppo2 as network  # keep ppo2.py unchanged
 
 SUMMARY_DIR = "..//SERVER_LOGS"
 LOG_FILE = SUMMARY_DIR + "//log_PPO"
@@ -362,7 +362,7 @@ def run(
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--movie", default="..//..//DATASET\MOVIE//movie_4g.json", help="Path to movie.json")
+    ap.add_argument("--movie", default="DATASET//MOVIE//movie_4g.json", help="Path to movie.json")
     ap.add_argument("--port", type=int, default=8605)
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--log-prefix", default="")

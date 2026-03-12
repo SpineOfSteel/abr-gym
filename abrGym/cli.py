@@ -1,12 +1,21 @@
 # abrGym/cli.py
-# ============================================================
-# Algorithm registry
-# ============================================================
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+
+from .runners.saber_runner import run_sabre
+from .runners.sabre_shim import run_sabre_shim
+from .runners.plm_runner import run_plm_test
+
 
 ALGORITHMS = {
     "rb": {
         "family": "classic",
-        "runner": "sabre",
+        "runner": "sabre_local",
         "plugin": "ALGO/rb.py",
         "backend_name": "rb",
         "description": "Rate-based ABR",
@@ -14,7 +23,7 @@ ALGORITHMS = {
     },
     "bb": {
         "family": "classic",
-        "runner": "sabre",
+        "runner": "sabre_local",
         "plugin": "ALGO/bb.py",
         "backend_name": "bb",
         "description": "Buffer-based ABR",
@@ -22,7 +31,7 @@ ALGORITHMS = {
     },
     "bola": {
         "family": "classic",
-        "runner": "sabre",
+        "runner": "sabre_local",
         "plugin": "ALGO/bola.py",
         "backend_name": "bola",
         "description": "BOLA",
@@ -30,7 +39,7 @@ ALGORITHMS = {
     },
     "bola_throughput": {
         "family": "classic",
-        "runner": "sabre",
+        "runner": "sabre_local",
         "plugin": "ALGO/bola-d.py",
         "backend_name": "throughput",
         "description": "BOLA-D throughput mode",
@@ -38,35 +47,61 @@ ALGORITHMS = {
     },
     "bola_dynamic": {
         "family": "classic",
-        "runner": "sabre",
+        "runner": "sabre_local",
         "plugin": "ALGO/bola-d.py",
         "backend_name": "dynamic",
         "description": "BOLA-D dynamic mode",
         "default_chunk_log": "log_BOLAD_dynamic_driving_4g.txt",
     },
+    "pensieve": {
+        "family": "rl",
+        "runner": "sabre_shim",
+        "plugin": "ALGO/pensieve.py",
+        "backend_name": "pensieve",
+        "server_script": "ALGO/algo-server/pensieve/pensieve_server.py",
+        "port": 8605,
+        "description": "Pensieve A3C via shim server",
+        "default_chunk_log": "log_PENSIEVE_driving_4g.txt",
+    },
     "ppo": {
         "family": "rl",
-        "runner": "rl",
-        "rl_backend": "ppo",
-        "description": "Proximal Policy Optimization ABR",
+        "runner": "sabre_shim",
+        "plugin": "ALGO/ppo.py",
+        "backend_name": "ppo",
+        "server_script": "ALGO/algo-server/ppo/ppo_server.py",
+        "port": 8607,
+        "description": "PPO via shim server",
+        "default_chunk_log": "log_PPO_driving_4g.txt",
     },
     "dqn": {
         "family": "rl",
-        "runner": "rl",
-        "rl_backend": "dqn",
-        "description": "Deep Q-Network ABR",
+        "runner": "sabre_shim",
+        "plugin": "ALGO/dqn.py",
+        "backend_name": "dqn",
+        "server_script": "ALGO/algo-server/dqn/dqn_server.py",
+        "port": 8606,
+        "description": "DQN via shim server",
+        "default_chunk_log": "log_DQN_driving_4g.txt",
     },
-    "a3c": {
+    "fastmpc": {
         "family": "rl",
-        "runner": "rl",
-        "rl_backend": "a3c",
-        "description": "Asynchronous Advantage Actor-Critic ABR",
+        "runner": "sabre_shim",
+        "plugin": "ALGO/fastmpc.py",
+        "backend_name": "fastmpc",
+        "server_script": "ALGO/algo-server/fastmpc_server.py",
+        "port": 8395,
+        "description": "FastMPC via shim server",
+        "default_chunk_log": "log_FASTMPC_driving_4g.txt",
     },
-    "pensieve": {
+    "robustmpc": {
         "family": "rl",
-        "runner": "rl",
-        "rl_backend": "pensieve",
-        "description": "Pensieve-style RL ABR",
+        "runner": "sabre_shim",
+        "plugin": "ALGO/robustmpc.py",
+        "backend_name": "robustmpc",
+        "server_script": "ALGO/algo-server/robustmpc_server.py",
+        "port": 8390,
+        "description": "RobustMPC via shim server",
+        "default_chunk_log": "log_ROBUSTMPC_driving_4g.txt",
     },
     "llama": {
         "family": "llm",
@@ -97,22 +132,14 @@ ALGORITHMS = {
         "runner": "plm",
         "plm_type": "t5-lm",
         "description": "T5-LM based PLM ABR",
-    }
+    },
+    "llava": {
+        "family": "llm",
+        "runner": "plm",
+        "plm_type": "llava",
+        "description": "LLaVA-based PLM ABR",
+    },
 }
-
-from __future__ import annotations
-
-import argparse
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional
-import subprocess
-import sys
-
-
-# ============================================================
-# Paths
-# ============================================================
 
 @dataclass
 class PathConfig:
@@ -139,74 +166,6 @@ class PathConfig:
         return self.root / "DATASET" / "artifacts" / "tmp"
 
 
-
-
-
-# ============================================================
-# Runners
-# ============================================================
-
-def run_sabre(args, meta, paths: PathConfig) -> None:
-    plugin_path = str(paths.root / meta["plugin"])
-    network = args.network or str(paths.default_network)
-    movie = args.movie or str(paths.default_movie)
-    chunk_folder = args.chunk_folder or str(paths.default_chunk_folder)
-    chunk_log = args.chunk_log or meta.get("default_chunk_log", "log.txt")
-
-    cmd = [
-        sys.executable,
-        str(paths.sabre_entry),
-        "--plugin",
-        plugin_path,
-        "-a",
-        meta["backend_name"],
-        "-n",
-        network,
-        "-m",
-        movie,
-        "--chunk-log",
-        chunk_log,
-        "--chunk-folder",
-        chunk_folder,
-    ]
-
-    if args.verbose:
-        cmd.append("-v")
-
-    subprocess.run(cmd, check=True)
-
-
-def run_plm_test(args, meta, paths: PathConfig) -> None:
-    if not args.model_dir:
-        raise ValueError("--model-dir is required for PLM test")
-    if not args.exp_pool_path:
-        raise ValueError("--exp-pool-path is required for PLM test")
-
-    cmd = [
-        sys.executable,
-        str(paths.llm_entry),
-        "--test",
-        "--plm-type",
-        meta["plm_type"],
-        "--plm-size",
-        args.plm_size,
-        "--rank",
-        str(args.rank),
-        "--device",
-        args.device,
-        "--model-dir",
-        args.model_dir,
-        "--exp-pool-path",
-        args.exp_pool_path,
-    ]
-
-    subprocess.run(cmd, check=True)
-
-
-# ============================================================
-# CLI
-# ============================================================
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="abrGym",
@@ -217,13 +176,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     simulate_p = sub.add_parser("simulate", help="Run SABRE simulation")
     simulate_p.add_argument("algorithm", choices=sorted(ALGORITHMS.keys()))
-    simulate_p.add_argument("-n", "--network", default=None)
-    simulate_p.add_argument("-m", "--movie", default=None)
-    simulate_p.add_argument("--chunk-log", default=None)
-    simulate_p.add_argument("--chunk-folder", default=None)
-    simulate_p.add_argument("-v", "--verbose", action="store_true")
+    simulate_p.add_argument("-n", "--network", default=None, help="Path to network trace/parquet")
+    simulate_p.add_argument("-m", "--movie", default=None, help="Path to movie json")
+    simulate_p.add_argument("--chunk-log", default=None, help="Chunk log filename")
+    simulate_p.add_argument("--chunk-folder", default=None, help="Folder for chunk logs")
+    simulate_p.add_argument("--port", type=int, default=None, help="Override shim server port")
+    simulate_p.add_argument("--server-model", default=None, help="Server model path, e.g. actor/model checkpoint")
+    simulate_p.add_argument("--server-movie", default=None, help="Movie path passed to server when needed")
+    simulate_p.add_argument("--server-extra", nargs="*", default=[], help="Extra args forwarded to server")
+    simulate_p.add_argument("--startup-timeout", type=float, default=15.0, help="Seconds to wait for server port")
+    simulate_p.add_argument("--debug_p", action="store_true", help="Enable SABRE debug_p")
+    simulate_p.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 
-    test_p = sub.add_parser("test", help="Test RL/PLM algorithm")
+    test_p = sub.add_parser("test", help="Test PLM/LLM algorithm")
     test_p.add_argument("algorithm", choices=sorted(ALGORITHMS.keys()))
     test_p.add_argument("--device", default="cpu")
     test_p.add_argument("--model-dir", default=None)
@@ -241,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_list() -> None:
     for name, meta in sorted(ALGORITHMS.items()):
-        print(f"{name:18} {meta['family']:8} {meta['runner']:8} {meta['description']}")
+        print(f"{name:18} {meta['family']:8} {meta['runner']:12} {meta['description']}")
 
 
 def cmd_info(algorithm: str) -> None:
@@ -251,7 +216,7 @@ def cmd_info(algorithm: str) -> None:
         print(f"{key:12} {value}")
 
 
-def main(argv: Optional[List[str]] = None) -> None:
+def main(argv: Optional[list[str]] = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     paths = PathConfig()
@@ -267,10 +232,13 @@ def main(argv: Optional[List[str]] = None) -> None:
     meta = ALGORITHMS[args.algorithm]
 
     if args.command == "simulate":
-        if meta["runner"] != "sabre":
-            raise ValueError(f"{args.algorithm} is not a SABRE simulation algorithm")
-        run_sabre(args, meta, paths)
-        return
+        if meta["runner"] == "sabre_local":
+            run_sabre(args, meta, paths)
+            return
+        if meta["runner"] == "sabre_shim":
+            run_sabre_shim(args, meta, paths)
+            return
+        raise ValueError(f"{args.algorithm} does not support simulate")
 
     if args.command == "test":
         if meta["runner"] != "plm":

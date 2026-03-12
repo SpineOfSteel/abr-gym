@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from SERVER.pensieve.ac import Actor, Critic
+from ac import Actor, Critic
 
 # ---- constants ----
 GAMMA = 0.99

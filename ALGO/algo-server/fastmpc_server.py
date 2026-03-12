@@ -27,11 +27,11 @@ REBUF_PENALTY = 20
 SMOOTH_PENALTY = 1
 
 RANDOM_SEED = 42
-SUMMARY_DIR = "SERVER_LOGS"
+
+print("Current Working Directory:", os.getcwd())
+SUMMARY_DIR = "ALGO/algo-server/SERVER_LOGS"
 LOG_FILE = SUMMARY_DIR + "//log1"
 LOG_BW = SUMMARY_DIR + "//log2"
-print("Current Working Directory:", os.getcwd())
-
 
 def make_handler(
     state: Dict,
@@ -388,6 +388,7 @@ def main():
     ap.add_argument("--debug", action="store_true", help="Print informative debug lines")
     ap.add_argument("--verbose", action="store_true", help="More verbose debug (adds raw/key dumps)")
     args = ap.parse_args()
+    print('fastMPC', args)
 
     run(
         port= int(args.port),
