@@ -10,7 +10,7 @@ from typing import Optional
 from .runners.saber_runner import run_sabre
 from .runners.sabre_shim import run_sabre_shim
 from .runners.plm_runner import run_plm_test
-
+from .runners.plot_runner import run_plot
 
 ALGORITHMS = {
     "rb": {
@@ -164,7 +164,18 @@ class PathConfig:
     @property
     def default_chunk_folder(self) -> Path:
         return self.root / "DATASET" / "artifacts" / "tmp"
+    
+    @property
+    def plot_entry(self) -> Path:
+        return self.root / "PLOT" / "plot_grouped.py"
 
+    @property
+    def default_plot_source(self) -> Path:
+        return self.root / "DATASET" / "artifacts" / "norway" / "results.all.parquet"
+
+    @property
+    def default_plot_output_dir(self) -> Path:
+        return self.root / "graphs"
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -174,6 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    
     simulate_p = sub.add_parser("simulate", help="Run SABRE simulation")
     simulate_p.add_argument("algorithm", choices=sorted(ALGORITHMS.keys()))
     simulate_p.add_argument("-n", "--network", default=None, help="Path to network trace/parquet")
@@ -201,6 +213,53 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("list", help="List algorithms")
 
+    plot_p = sub.add_parser("plot", help="Generate grouped evaluation plots")
+    plot_p.add_argument(
+        "--source",
+        default=None,
+        help="Folder of txt logs or parquet file; if omitted, default plot source is used",
+    )
+    plot_p.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory for generated plots",
+    )
+    plot_p.add_argument(
+        "--algo",
+        nargs="+",
+        default=None,
+        help="Algorithms to include; if omitted, all default algorithms are used",
+    )
+    plot_p.add_argument(
+        "--group",
+        nargs="+",
+        default=None,
+        help="Transport groups to include; if omitted, all default groups are used",
+    )
+    plot_p.add_argument(
+        "--plot",
+        nargs="+",
+        default=["all"],
+        choices=["all", "tradeoff", "smoothness", "bitrate", "stall", "qoe"],
+        help="Plot types to generate",
+    )
+    plot_p.add_argument(
+        "--include-all",
+        action="store_true",
+        help="Also generate aggregate plots across all groups with suffix 'all'",
+    )
+    plot_p.add_argument(
+        "--video-len",
+        type=float,
+        default=48.0,
+        help="Video length used for txt-log derived stall calculations",
+    )
+    plot_p.add_argument(
+        "--recursive",
+        action="store_true",
+        help="Search source folder recursively for txt logs",
+    )
+
     return parser
 
 
@@ -227,6 +286,10 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     if args.command == "info":
         cmd_info(args.algorithm)
+        return
+
+    if args.command == "plot":
+        run_plot(args, paths)
         return
 
     meta = ALGORITHMS[args.algorithm]
