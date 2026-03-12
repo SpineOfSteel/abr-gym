@@ -1,128 +1,296 @@
 
-# ABR Plot Library
+# Plotting Results with `abrGym`
 
-A consolidated plotting library for ABR experiments, 
-## What this fixes
+The `abrGym plot` command generates evaluation plots for **Adaptive Bitrate (ABR) algorithms** using simulation results.
 
-### 1) Constants now live in one place
-Instead of hard-coding different values in every script, `ABRPlotConfig` centralizes:
-- `video_len`
-- `num_bins`
-- bitrate ladder (`video_bitrates_kbps`)
-- unit conversions
-- QoE penalties (`rebuffer_penalty`, `smooth_penalty`)
-- input/output folders
+Plots can be generated from:
 
-### 2) Conflicting assumptions are now explicit
-The old files used different values depending on dataset or experiment:
-- `VIDEO_LEN = 48` in some scripts
-- `VIDEO_LEN = 64` in others
-- 5-level bitrate ladder in one script
-- 6-level bitrate ladder in another
-- CDF normalized in some plots, unnormalized in others
-- `sim_dp` reward treated as a scalar in one file and reconstructed chunk-wise in another
+- **Parquet summary files** (recommended)
+- **Directories containing simulation logs (`.txt`)**
 
-The library makes those choices configurable instead of silently mixing them.
+These plots help compare algorithms across **network conditions and transport groups**, allowing quick evaluation of streaming quality metrics such as bitrate, stall events, and overall QoE.
 
-### 3) One parser supports multiple log styles
-Supported:
-- standard per-line ABR logs with explicit reward
+---
 
-## Main API
+# Command Overview
 
-```python
-from abr_plot_lib import (
-    ABRPlotConfig,
-    load_sessions,
-    aggregate_metrics,
-    plot_reward_by_trace,
-    plot_qoe_cdf,
-    plot_tradeoff_scatter,
-    plot_session_panel,
-    save_png,
-)
-```
-
-## Quick start
-
-```python
-from abr_plot_lib import ABRPlotConfig, build_default_report
-
-cfg = ABRPlotConfig(
-    results_dir="./results",
-    output_dir="./figures",
-    video_len=48,
-    video_bitrates_kbps=[300, 750, 1200, 1850, 2850, 4300],
-)
-
-build_default_report("./results", "./figures", cfg=cfg, schemes=["BB", "BOLA", "RL"])
-```
-
-This produces:
-- `reward_by_trace.png`
-- `qoe_cdf.png`
-- `bitrate_vs_stall.png`
-- `smoothness_vs_stall.png`
-- `bitrate_vs_smoothness.png`
-- `session_panel.png` (when aligned sessions exist)
-
-## Example script
-
-Run:
+Basic usage:
 
 ```bash
-python example_usage.py
+python -m abrGym plot [OPTIONS]
 ```
 
-It creates a small synthetic dataset and exports multiple PNGs into:
+Common options:
+
+| Option | Description |
+|------|-------------|
+| `--source` | Folder containing log files or a `.parquet` results file |
+| `--output-dir` | Directory to store generated plots |
+| `--algo` | Algorithms to include |
+| `--group` | Transport groups to include |
+| `--plot` | Plot types to generate |
+| `--include-all` | Generate aggregated plots across all groups |
+
+If `--algo` or `--group` is not specified, **all default algorithms and groups are included**.
+
+---
+
+# Default Algorithms
+
+```
+bb
+bola
+mpc
+rl
+ppo
+netllm
+```
+
+These include:
+
+- rule‑based ABR algorithms
+- model‑predictive control methods
+- reinforcement learning methods
+- LLM‑based adaptation approaches
+
+---
+
+# Default Transport Groups
+
+```
+tram
+car
+bus
+ferry
+metro
+train
+```
+
+These correspond to network traces collected under different mobility scenarios.
+
+---
+
+# Available Plot Types
+
+```
+tradeoff
+smoothness
+bitrate
+stall
+qoe
+```
+
+Use:
+
+```
+--plot all
+```
+
+to generate every plot type.
+
+---
+
+# Plot Descriptions
+
+## Tradeoff Plot (Bitrate vs Stall)
+
+The **tradeoff plot** visualizes the relationship between **video bitrate and stall ratio** for each algorithm.
+
+Higher bitrate improves visual quality but can increase the risk of buffering if the network cannot sustain it. ABR algorithms must therefore balance quality and playback stability. This plot shows each algorithm’s mean bitrate and stall percentage along with variability across traces, making it easy to identify algorithms that deliver high quality while minimizing rebuffering.
+
+Output example:
+
+```
+baselines-bus-tradeoff.png
+```
+
+---
+
+## Bitrate Plot
+
+The **bitrate plot** shows the **average video bitrate achieved across network traces**.
+
+Higher bitrate generally corresponds to better visual quality, but algorithms that aggressively select high bitrates may cause buffering if bandwidth fluctuates. This plot helps evaluate how consistently each algorithm maintains high-quality video across different network environments.
+
+Output example:
+
+```
+baselines-bus-br.png
+```
+
+---
+
+## Stall Plot
+
+The **stall plot** measures the **percentage of playback time spent stalled (rebuffering)**.
+
+Stall events occur when the playback buffer empties and the player must wait for new segments to download. Rebuffering significantly impacts user experience, often more than small changes in visual quality. This plot helps identify algorithms that maintain smooth playback under varying network conditions.
+
+Output example:
+
+```
+baselines-bus-st.png
+```
+
+---
+
+## Smoothness Plot
+
+The **smoothness plot** measures **bitrate variation between consecutive segments**.
+
+Frequent quality switches can degrade perceived video quality even if the average bitrate is high. This metric captures the stability of an algorithm's bitrate decisions, rewarding algorithms that maintain consistent quality rather than oscillating between representations.
+
+Output example:
+
+```
+baselines-bus-sr.png
+```
+
+---
+
+## QoE CDF Plot
+
+The **QoE CDF plot** shows the **distribution of Quality of Experience (QoE) scores** across network traces.
+
+QoE typically combines several metrics such as:
+
+- bitrate
+- rebuffering penalties
+- quality switching penalties
+
+By plotting the cumulative distribution function (CDF), this graph shows how frequently an algorithm achieves higher QoE compared to others, providing a clear summary of overall performance across traces.
+
+Output example:
+
+```
+baselines-bus-qoe.png
+```
+
+---
+
+# Basic Usage
+
+Run plotting using default configuration:
 
 ```bash
-/mnt/data/example_figures
+python -m abrGym plot
 ```
 
-## Notes on session alignment
+---
 
-Many of the old scripts compare only sessions that exist for **all** schemes.  
-This behavior is preserved through `common_session_ids(...)` and `aggregate_metrics(...)`.
+# Using a Parquet Results File
 
-## Notes on reward handling
+Example:
 
-For standard logs:
-- reward is read directly from column 7
-
-For `sim_dp` logs:
-- bitrate is reconstructed from quality index using `video_bitrates_kbps`
-- reward is approximated chunk-wise using bitrate, inferred stall, and smoothness penalty
-- if a session-level reward exists, the library adjusts the reconstructed vector so the summed reward remains consistent
-
-That keeps the comparison usable while still exposing the assumption in one place.
-
-## Typical custom plots
-
-### Reward by trace
-
-```python
-fig, ax = plot_reward_by_trace(metrics)
-save_png(fig, "reward_by_trace.png")
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet
 ```
 
-### QoE CDF
+Specify output directory:
 
-```python
-fig, ax = plot_qoe_cdf(metrics)
-save_png(fig, "qoe_cdf.png")
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --output-dir graphs/norway
 ```
 
-### Bitrate vs stall ratio
+Generate all plots including aggregated results:
 
-```python
-fig, ax = plot_tradeoff_scatter(metrics, x="stall_ratio_pct", y="mean_bitrate_mbps")
-save_png(fig, "bitrate_vs_stall.png")
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --output-dir graphs/norway --plot all --include-all
 ```
 
-### One-session multi-panel view
+---
 
-```python
-fig, axes = plot_session_panel(sessions, session_id="trace1.txt", schemes=["BB", "BOLA", "RL"])
-save_png(fig, "session_panel.png")
+# Selecting Algorithms
+
+Compare specific algorithms:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --algo bb bola ppo
+```
+
+Compare classic and learning-based algorithms:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --algo bb bola mpc rl ppo netllm
+```
+
+---
+
+# Selecting Transport Groups
+
+Plot only bus traces:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --group bus
+```
+
+Multiple groups:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --group tram car train
+```
+
+---
+
+# Combined Filters
+
+Example comparing algorithms on selected groups:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --algo bb bola ppo netllm --group bus tram train --plot tradeoff
+```
+
+---
+
+# Using Log Files Instead of Parquet
+
+You can also generate plots directly from simulation logs.
+
+Example:
+
+```bash
+python -m abrGym plot --source DATASET/TRACES/norway
+```
+
+Recursive search with custom output directory:
+
+```bash
+python -m abrGym plot --source DATASET/TRACES/norway --output-dir graphs/from_logs --recursive --include-all
+```
+
+---
+
+# Typical Output Files
+
+Each transport group generates plots such as:
+
+```
+baselines-bus-tradeoff.png
+baselines-bus-br.png
+baselines-bus-st.png
+baselines-bus-sr.png
+baselines-bus-qoe.png
+```
+
+If `--include-all` is enabled, additional aggregated plots are generated:
+
+```
+baselines-all-tradeoff.png
+baselines-all-qoe.png
+```
+
+---
+
+# Recommended Workflow
+
+Generate all plots for a full experiment:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --output-dir graphs/paper --algo bb bola mpc rl ppo netllm --group tram car bus ferry metro train --plot all --include-all
+```
+
+Quick sanity check:
+
+```bash
+python -m abrGym plot --source DATASET/artifacts/norway/results.all.parquet --plot tradeoff qoe
 ```
