@@ -86,15 +86,14 @@ The wall-time plot answers a practical question: **which model reaches a good po
 
 Reward comparison 2
 -------------------
-
-.. figure:: ../PLOT/graphs/episodes.png
+.. figure:: ../PLOT/rl_logs/episodes.png
    :alt: RL model reward comparison versus episodes
    :width: 95%
    :align: center
 
    Episode reward versus training episodes for PPO, DQN, SAC, A2C, DDPG, and TD3.
 
-.. figure:: ../PLOT/graphs/timesteps.png
+.. figure:: ../PLOT/rl_logs/timesteps.png
    :alt: RL model reward comparison versus environment timesteps
    :width: 95%
    :align: center
