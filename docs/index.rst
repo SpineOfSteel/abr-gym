@@ -25,7 +25,7 @@ Quick navigation
    dataset
    env/index   
    sim/index
-   plot
+   plots
 
 Project layout
 --------------
