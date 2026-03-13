@@ -70,13 +70,10 @@ The plots were generated with the plotting helper:
 
 
 
-RL Training Curves
-------------------------------------
-
 In addition to the Norway transport-wise evaluation below, we generated a family of plots from RL training logs on the ``abr-gym`` environment. These figures compare how quickly each method improves during training and where it stabilizes in terms of episode reward.
 
 Reward comparison 1
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------
 
 .. figure:: ../PLOT/graphs/walltime.png
    :alt: RL model reward comparison versus wall-clock training time
@@ -88,7 +85,7 @@ Reward comparison 1
 The wall-time plot answers a practical question: **which model reaches a good policy fastest in real elapsed time?** DDPG and TD3 climb almost immediately to the top reward band near 11k, while SAC also improves very quickly but settles slightly lower. PPO starts much lower and needs more elapsed time to approach the top cluster. DQN improves in stages, showing slower early learning than the best continuous-control methods. The red curve, labeled A3C in the supplied figure but sourced from ``logs/a2c/``, plateaus early around 7k and clearly underperforms the others. What this means for ABR is that actor-critic methods with replay and continuous-action optimization can discover strong bitrate-control policies much faster than the simpler on-policy baseline here.
 
 Reward comparison 2
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------
 
 .. figure:: ../PLOT/graphs/episodes.png
    :alt: RL model reward comparison versus episodes
@@ -107,14 +104,9 @@ Reward comparison 2
 The episode-index view normalizes away raw wall-clock speed and instead shows how reward evolves as more rollouts are collected. DDPG and TD3 still occupy the top region almost from the beginning, which suggests that their advantage is not only computational but also sample-efficiency on this environment. SAC reaches high performance early, but with a bit more variance and a slightly lower ceiling. DQN makes a sharp jump around the middle of training, indicating delayed but meaningful value-function improvement. PPO rises more gradually and steadily. The A2C/A3C-labeled run again saturates much earlier than the other agents. For ABR, this suggests that continuous-control agents are better at quickly internalizing the bitrate–rebuffer–smoothness tradeoff from limited interaction data.
 The timestep plot is usually the fairest learning-curve view because it compares algorithms against the same amount of environment interaction. The ranking is consistent with the other two panels: DDPG and TD3 are strongest overall, SAC remains highly competitive, PPO improves steadily into the upper-middle range, DQN catches up after a slower start, and the A2C/A3C-labeled run stays well below the top group. In ABR terms, the leading methods are the ones that most quickly learn a control policy that balances video quality against rebuffering risk and abrupt bitrate switches. When timesteps are limited, these plots suggest prioritizing TD3, DDPG, or SAC before investing heavily in weaker baselines.
 
-Interpretation and practical takeaway
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Taken together, the three panels tell a consistent story. PPO is stable and eventually competitive, but it is not the fastest learner in this setup. DQN can become strong, yet it improves more abruptly and later. SAC is consistently good and robust. DDPG and TD3 dominate the reward curves, especially early, which makes them attractive choices when training budget is limited or when rapid policy iteration matters. The weakest run is the red ``logs/a2c/`` curve, so it should be treated as a lower baseline rather than a target. For an ABR study, these plots support the claim that off-policy actor-critic methods with continuous action outputs are especially effective when the final bitrate decision is derived from a richer continuous control signal and then mapped into the bitrate ladder.
-
 
 Dataset Background
-------------------
+~~~~~~~~~~~~~~~~~~
 
 The traces come from the MMSys 2013 Norway mobile streaming dataset. The dataset organizes measurements by route and transport type, and also provides route maps and observed bandwidth profiles. Measurements were collected during TCP streaming sessions over Telenor's 3G/HSDPA network in Norway using fixed 2-second video segments. Some routes include very weak-signal regions, including tunnel-heavy metro segments, which helps explain abrupt bitrate drops, rebuffer spikes, and large QoE differences across controllers.
 
@@ -124,39 +116,35 @@ The most useful reading pattern for this page is:
 #. the **measured bandwidth profile** along that route,
 #. the **scheme outcome plots** for bitrate, smoothness, stall, QoE, and bitrate-vs-stall tradeoff.
 
-How to Read the Plots
----------------------
-
-
 Average bitrate per trace
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 The bitrate plot shows the mean delivered video bitrate for each trace. Higher is only better when it is achieved without frequent stalls or violent switching.
 
 Bitrate smoothness per trace
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 The smoothness plot measures the mean absolute bitrate switch magnitude, i.e. the mean of ``|delta bitrate|``. Lower values indicate a more stable experience.
 
 Time spent on stall per trace
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 The stall plot shows the fraction of time spent rebuffering. Lower is better, and large spikes correspond to severe playback failures.
 
 QoE CDF
-~~~~~~~
+-------
 
 The QoE CDF is the best single ranking view. Curves further to the right indicate stronger per-trace reward over more of the benchmark.
 
 Bitrate vs stall tradeoff
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 The tradeoff plot places **mean bitrate** on the x-axis and **mean stall ratio** on the y-axis, with error bars showing interquartile spread. The most desirable region is **bottom-right**: high bitrate with low stall. These plots make clear why bitrate alone is not enough to judge an ABR algorithm. Two schemes can have similar mean bitrate, but one may reach it by accepting much higher rebuffer risk.
 
 .. _combined-results:
 
-Combined Results Across All Transports
---------------------------------------
+Results Across All Transports
+------------------------------
 
 The aggregate ``all`` plots combine every transport trace. They show which controller stays reliable across mixed mobility rather than excelling only on one easier route family.
 
@@ -208,14 +196,14 @@ This tradeoff plot makes the main lesson explicit: **bitrate is not enough**. BB
 .. _transport-specific-evaluation:
 
 Transport-specific Evaluation
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each subsection includes route context, bandwidth structure, and the scheme comparison plots produced by ``plot_grouped.py``.
 
 .. _bus:
 
 Bus
-~~~
+---
 
 The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense city movement with changing coverage and is a useful urban mobility benchmark.
 
@@ -284,7 +272,7 @@ The bus tradeoff view shows why raw bitrate is misleading. RobustMPC reaches the
 .. _car:
 
 Car
-~~~
+---
 
 The car dataset includes **Alesund to Oslo** and **Oslo to Alesund**. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation.
 
@@ -353,7 +341,7 @@ The car tradeoff plot is a strong counterexample to bitrate-only analysis. BBA, 
 .. _ferry:
 
 Ferry
-~~~~~
+-----
 
 The ferry route runs from **Nesoddtangen to Aker brygge**. Compared with land-only routes, it exposes the player to waterfront coverage changes and a different infrastructure geometry.
 
@@ -422,7 +410,7 @@ The ferry tradeoff plot again shows why bitrate is insufficient. BBA and RobustM
 .. _metro:
 
 Metro
-~~~~~
+-----
 
 The metro route runs from **Kalbakken to Jernbanetorget**. Part of the route is underground in a tunnel with very weak signal, making metro one of the hardest mobility stress tests in the set.
 
@@ -491,7 +479,7 @@ Metro makes the bitrate problem obvious. BBA has the highest bitrate and still l
 .. _train:
 
 Train
-~~~~~
+-----
 
 The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment.
 
@@ -560,7 +548,7 @@ The train tradeoff plot makes it clear that BBA's extra bitrate is too expensive
 .. _tram:
 
 Tram
-~~~~
+----
 
 The tram portion includes multiple urban routes such as **Ljabru to Jernbanetorget**, **Jernbanetorget to Ljabru**, and **Jernbanetorget to University hospital**. These stop-and-go traces test whether a controller can avoid overreacting to recurring medium-scale changes.
 
@@ -633,8 +621,8 @@ First, in the RL training stage, TD3, DDPG, and SAC are the strongest choices in
 
 Second, in the mobility-trace evaluation stage, QoE and bitrate-vs-stall tradeoff are more trustworthy than bitrate alone. Several schemes can look good on mean bitrate while still producing much worse playback due to stall. Across mixed real-world traces, methods such as Pen-PPO, Pensieve, RobustMPC, and in some route groups NetLLM, look better precisely because they balance quality with robustness rather than chasing bitrate aggressively.
 
-Implementation Notes from ``plot_grouped.py``
----------------------------------------------
+Implementation Notes
+~~~~~~~~~~~~~~~~~~~~
 
 Several implementation details directly affect how these figures should be interpreted:
 
