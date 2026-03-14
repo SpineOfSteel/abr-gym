@@ -24,7 +24,7 @@ Quick navigation
    algo/index
    dataset
    env/index   
-   sim/index
+   simulator
    plots
 
 Project layout

@@ -1,5 +1,9 @@
-Pensieve (A3C)
-==============
+Pensieve (No Gym)
+=================
+
+.. contents::
+   :local:
+   :depth: 1
 
 Folder: ``SERVER/pensieve``
 
@@ -11,10 +15,13 @@ It includes:
 
 - **Inference server**: ``pensieve_server.py`` (HTTP + CORS, returns next quality index)
 - **Training driver**: ``train_a3c.py`` (central learner + worker(s) computing gradients)
-- **A3C networks + update utilities**: ``a3c.py`` (ActorNetwork, CriticNetwork, Network, compute_gradients)
+- **A3C networks + update utilities**: ``a3c.py`` (ActorNetwork, CriticNetwork, Network, ``compute_gradients``)
+
+Quickstart
+----------
 
 Repository files
-----------------
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -24,17 +31,12 @@ Repository files
    ├── train_a3c.py
    └── README.md
 
-
-Quickstart
-----------
-
 Install dependencies
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
    pip install numpy torch
-
 
 Run the Pensieve (A3C) server
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,7 +55,6 @@ Notes:
 - If the actor checkpoint is missing, the server continues with randomly initialized weights.
 - Logs are written under a server logs folder (see ``SUMMARY_DIR`` / ``LOG_FILE`` in the server).
 
-
 Train A3C (offline)
 ~~~~~~~~~~~~~~~~~~~
 
@@ -62,48 +63,38 @@ Train A3C (offline)
    python train_a3c.py
 
 Training runs a **central learner** that aggregates worker gradients and applies them
-(RMSProp), periodically saving actor and critic checkpoints.
-
+with RMSProp, periodically saving actor and critic checkpoints.
 
 Overview
 --------
 
-Runtime flow (server)
-~~~~~~~~~~~~~~~~~~~~~
+Server runtime flow
+~~~~~~~~~~~~~~~~~~~
 
-1. **Client (video player)** POSTs per-chunk playback + download stats.
-2. **Server** updates the RL state, computes a per-chunk QoE reward for logging,
+1. A client video player or ABR shim POSTs per-chunk playback and download statistics.
+2. The server updates the RL state, computes a per-chunk QoE reward for logging,
    and queries the A3C actor to get a probability distribution :math:`\pi(a|s)`.
-3. **Action selection** samples a discrete quality index from the distribution.
-4. Server returns the **next quality index** as plain text.
+3. An action is sampled from the policy distribution.
+4. The server returns the next quality index as plain text.
 
 At end-of-video, the server returns ``REFRESH`` and resets its internal episode state.
 
+Training flow
+~~~~~~~~~~~~~
 
-Training flow (A3C)
-~~~~~~~~~~~~~~~~~~~
+This implementation follows a parameter-server style loop:
 
-This implementation follows a “parameter-server style” loop:
-
-- **Central learner**
-  - Owns master Actor + Critic networks
-  - Pushes latest network parameters to workers each epoch
-  - Collects worker-computed gradients
-  - Averages gradients and applies them (RMSProp)
-  - Saves checkpoints periodically
-
-- **Worker(s)**
-  - Run rollouts in the ABR environment (``ABREnv``)
-  - Compute local gradients (actor + critic) using the A3C update rule
-  - Send gradients + summary stats back to the central learner
-  - Sync updated parameters and repeat
-
+- **Central learner** owns the master actor and critic networks.
+- It pushes the latest network parameters to workers, receives worker gradients,
+  averages them, applies updates, and periodically saves checkpoints.
+- **Workers** run rollouts in ``ABREnv``, compute local actor and critic gradients,
+  and send those gradients plus summary statistics back to the learner.
 
 State, Action, Reward
 ---------------------
 
-State space (Pensieve-style)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+State space
+~~~~~~~~~~~
 
 The state tensor dimensions are:
 
@@ -111,36 +102,33 @@ The state tensor dimensions are:
 - ``S_LEN = 8``
 
 The server maintains a rolling history. Each new chunk shifts the tensor left and
-writes the newest “column” at the end.
+writes the newest observation column at the end.
 
 The 6 rows correspond to:
 
 0. **Last selected bitrate**, normalized by max bitrate
 1. **Buffer level**, normalized by ``BUFFER_NORM_FACTOR`` (10 seconds)
 2. **Throughput estimate** from last download (KB/ms)
-3. **Download time**, normalized (sec/10)
+3. **Download time**, normalized (seconds / 10)
 4. **Next chunk sizes** for all qualities (MB)
 5. **Remaining chunks**, normalized by a cap
 
-Next-chunk sizes are derived from the movie manifest’s per-segment sizes (converted
-from bits to bytes internally).
-
+Next-chunk sizes are derived from the movie manifest’s per-segment sizes.
 
 Action space
 ~~~~~~~~~~~~
 
-- ``A_DIM = 6`` discrete quality levels, typically indices 0..5.
-- The server returns the selected quality index as plain text.
+- ``A_DIM = 6`` discrete quality levels, typically indices ``0`` to ``5``
+- The server returns the selected quality index as plain text
 
+Reward function
+~~~~~~~~~~~~~~~
 
-Reward function (QoE)
-~~~~~~~~~~~~~~~~~~~~~
+The server computes a per-chunk QoE reward that:
 
-The server computes a per-chunk QoE reward:
-
-- Higher bitrate → higher reward
-- Rebuffering (stall) → large penalty
-- Quality switches → smoothness penalty
+- rewards higher bitrate
+- penalizes rebuffering heavily
+- penalizes quality switches
 
 Constants used in the server:
 
@@ -157,16 +145,15 @@ Reward form:
 
 Where:
 
-- :math:`b` is current selected bitrate (kbps)
-- :math:`\Delta t_{stall}` is **incremental** stall time since the last decision (seconds)
-- :math:`b_{prev}` is the previous selected bitrate (kbps)
+- :math:`b` is current selected bitrate in kbps
+- :math:`\Delta t_{stall}` is incremental stall time since the last decision in seconds
+- :math:`b_{prev}` is the previous selected bitrate in kbps
 
-Important: Incoming ``RebufferTime`` from the client is cumulative (ms). The server
-converts it into a **delta** from the last request before computing reward.
+Important: incoming ``RebufferTime`` from the client is cumulative in ms. The server
+converts it into a delta before computing reward.
 
-
-HTTP API (shim protocol)
-------------------------
+HTTP API
+--------
 
 Request
 ~~~~~~~
@@ -176,147 +163,127 @@ The server expects a JSON POST payload with fields similar to dash.js ABR shims:
 - ``lastquality`` (int)
 - ``lastRequest`` (int) chunk index
 - ``buffer`` (float) seconds
-- ``RebufferTime`` (float) cumulative rebuffer time (ms)
+- ``RebufferTime`` (float) cumulative rebuffer time in ms
 - ``lastChunkStartTime`` / ``lastChunkFinishTime`` (ms timestamps)
 - ``lastChunkSize`` (bytes)
 
 Error handling:
 
-- Returns ``BAD_JSON`` if payload cannot be parsed as JSON.
-- Returns ``MISSING_FIELD:<field>`` if a required field is missing.
-- Returns ``BAD_FIELD:<...>`` for invalid field parsing.
+- returns ``BAD_JSON`` if payload cannot be parsed as JSON
+- returns ``MISSING_FIELD:<field>`` if a required field is missing
+- returns ``BAD_FIELD:<...>`` for invalid field parsing
 
 Special-case payloads:
 
-- If ``pastThroughput`` is present, the server treats it as a summary payload and replies ``"0"``.
-
+- if ``pastThroughput`` is present, the server treats it as a summary payload and replies ``"0"``
 
 Response
 ~~~~~~~~
 
-- Returns the next quality index: ``"0"`` … ``"5"``.
-- Returns ``"REFRESH"`` at end-of-video and resets internal episode state.
+- returns the next quality index: ``"0"`` … ``"5"``
+- returns ``"REFRESH"`` at end-of-video and resets internal episode state
 
-
-Logging
--------
-
-The server writes one TSV line per chunk for plotting and analysis. A typical line includes:
-
-.. code-block:: text
-
-   time  bitrate_kbps  buffer_s  rebuf_delta_s  chunk_size_bytes  fetch_time_ms  reward
-
-Use these logs to plot bitrate/buffer/stall behavior and QoE distributions.
-
-
-Movie manifest format (movie_*.json)
-------------------------------------
+Movie manifest format
+---------------------
 
 The server expects a movie manifest JSON with keys:
 
 - ``segment_duration_ms``
-- ``bitrates_kbps`` (must have length 6)
-- ``segment_sizes_bits``: list of segments, each containing 6 sizes in **bits**
+- ``bitrates_kbps``
+- ``segment_sizes_bits``: list of segments, each containing one size per quality in **bits**
 
-Internally, sizes are converted bits → bytes using ceiling division.
+Internally, sizes are converted from bits to bytes using ceiling division.
 If ``total_video_chunks`` is not provided, it is derived from the segment list length.
 
+Implementation
+--------------
 
-A3C implementation (a3c.py)
----------------------------
+A3C implementation (``a3c.py``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Network structure
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
-The actor/critic share a “Pensieve-like” feature extractor:
+The actor and critic share a Pensieve-like feature extractor:
 
-- Rows 0, 1, and 5 use FC layers over the most recent scalar.
-- Rows 2 and 3 use 1D convolution over history length ``S_LEN``.
-- Row 4 uses 1D convolution over the first ``A_DIM`` entries (next chunk sizes).
+- rows 0, 1, and 5 use fully connected layers over the most recent scalar values
+- rows 2 and 3 use 1D convolution over the history dimension
+- row 4 uses 1D convolution over the next-chunk-size vector
 
-Actor head outputs a probability distribution :math:`\pi(a|s)` (softmax with clamping).
-Critic head outputs a scalar value estimate :math:`V(s)`.
+The actor head outputs a probability distribution :math:`\pi(a|s)`.
+The critic head outputs a scalar value estimate :math:`V(s)`.
 
 Optimization and stability
-~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Uses RMSProp optimizer (classic A3C style).
-- Uses entropy regularization in the actor loss to prevent premature collapse.
-- Probability vectors are clamped to avoid log(0) and NaNs.
+- uses RMSProp optimizer in classic A3C style
+- uses entropy regularization in the actor loss to discourage early collapse
+- clamps probabilities to avoid ``log(0)`` and numerical instability
 
 Training API surface:
 
 - ``ActorNetwork.predict(inputs)`` → action probabilities
 - ``CriticNetwork.predict(inputs)`` → value estimate
-- ``compute_gradients(s_batch, a_batch, r_batch, terminal, actor, critic)`` →
-  returns actor gradients, critic gradients, and TD errors
+- ``compute_gradients(...)`` → actor gradients, critic gradients, and TD errors
 
-
-Training driver (train_a3c.py)
-------------------------------
+Training driver (``train_a3c.py``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Key configuration
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
-The training script sets:
+Typical constants include:
 
-- ``TRACE_JSON_PATH`` (trace JSON, e.g., ``DATASET\\NETWORK\\network.json``)
-- ``VIDEO_PATH`` (movie manifest, e.g., ``DATASET\\MOVIE\\movie_4g.json``)
-- ``SUMMARY_DIR`` (checkpoint output dir, e.g., ``DATASET\\MODELS``)
+- ``S_INFO = 6``
+- ``S_LEN = 8``
+- ``A_DIM = 6``
+- ``NUM_AGENTS`` for worker count
+- ``TRAIN_SEQ_LEN`` for rollout length
+- checkpoint save intervals and model paths
 
-Training hyperparameters:
+The learner pushes model weights to workers, receives worker-computed gradients,
+and applies averaged updates before saving checkpoints.
 
-- ``S_DIM = [6, 8]``, ``A_DIM = 6``
-- ``TRAIN_SEQ_LEN = 1000``
-- ``TRAIN_EPOCH = 2000``
-- ``MODEL_SAVE_INTERVAL = 300``
-- ``NUM_AGENTS`` controls number of workers
-- Multiprocessing start method uses ``spawn`` (safer for PyTorch)
+Using a trained model
+---------------------
 
-Checkpoints
-~~~~~~~~~~~
-
-A3C saves **separate** weights:
-
-- Actor: ``a3c_actor_ep_{epoch}.pth``
-- Critic: ``a3c_critic_ep_{epoch}.pth``
-
-For deployment, the HTTP server typically needs only the **actor** checkpoint.
-
-
-Using a trained actor in the server
------------------------------------
-
-After training produces actor checkpoints in your model directory, start the server with:
+After training produces checkpoints, start the server with:
 
 .. code-block:: bash
 
    python pensieve_server.py --host localhost --port 8605 \
-     --movie DATASET/MOVIE/movie_4g.json \
-     --actor DATASET/MODELS/a3c_actor_ep_1800.pth \
+     --movie movie_4g.json \
+     --actor server/models_a3c_min/a3c_actor_ep_600.pth \
      --debug --verbose
 
+Evaluation note:
+
+- the current server samples from the policy distribution
+- for deterministic evaluation, replace sampling with ``argmax(pi)``
+
+Logging and Troubleshooting
+---------------------------
+
+Logging
+~~~~~~~
+
+The server writes one TSV line per chunk for plotting and analysis, with fields such as:
+
+.. code-block:: text
+
+   time  bitrate_kbps  buffer_s  rebuf_delta_s  chunk_size_bytes  fetch_time_ms  reward
+
+Use these logs to plot bitrate, buffer, stall behavior, and QoE trends.
 
 Troubleshooting
----------------
+~~~~~~~~~~~~~~~
 
-Import/package issues
-~~~~~~~~~~~~~~~~~~~~~
+Model load errors:
 
-If you use package-style imports (``SERVER.pensieve.a3c``), ensure:
+- verify the ``--actor`` checkpoint path
+- verify the checkpoint was produced by the A3C training code
 
-- ``SERVER/__init__.py`` exists
-- ``SERVER/pensieve/__init__.py`` exists (recommended)
+Import or package issues:
 
-Windows vs Linux paths
-~~~~~~~~~~~~~~~~~~~~~~
-
-Your training script uses Windows-style paths (``DATASET\\...``). For cross-platform
-support (Linux/ReadTheDocs), prefer ``os.path.join(...)`` or forward slashes.
-
-Model file not found
-~~~~~~~~~~~~~~~~~~~~
-
-If the actor checkpoint path is wrong, the server will warn and run with random weights.
-Train first or correct the ``--actor`` path.
+- ensure package ``__init__.py`` files exist where needed
+- prefer consistent relative imports between server and training code

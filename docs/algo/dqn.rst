@@ -1,19 +1,26 @@
-DQN
-===
+DQN (No Gym)
+============
+
+.. contents::
+   :local:
+   :depth: 1
 
 Folder: ``SERVER/dqn``
-DQN is Value-based RL ABR. Inspired by Pensieve-style state representation and reward design, but using a Double-DQN architecture. It serves ABR decisions via an HTTP API, allowing it to be used as a remote ABR server for clients that can send chunk stats and receive quality decisions.
+
+This module provides an HTTP ABR decision server backed by a **DQN value-based**
+policy, using a **Pensieve-style state representation**.
 
 It includes:
-- **DQN model**: ``dqn.py`` (PyTorch Double-DQN with replay buffer + target net)
+
+- **DQN model**: ``dqn.py`` (PyTorch Double-DQN with replay buffer and target network)
 - **Inference server**: ``dqn_server.py`` (HTTP + CORS, returns next quality index)
 - **Trainer**: ``train_dqn.py`` (offline training against ``ABREnv``)
 
-This module provides an HTTP ABR decision server backed by a DQN 
-value-based policy, using a Pensieve-style state representation.
+Quickstart
+----------
 
 Repository files
-----------------
+~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -21,12 +28,6 @@ Repository files
    ├── dqn.py
    ├── dqn_server.py
    ├── train_dqn.py
-
-Quickstart
-----------
-1. Run the DQN server (with a model checkpoint or random weights).
-2. Send POST requests with chunk stats to get quality decisions.
-
 
 Run the DQN ABR server
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -41,33 +42,53 @@ Run the DQN ABR server
 Notes:
 
 - If the model file is missing, the server can still run with randomly initialized weights.
-- Logs are written under a server log folder (see ``dqn_server.py`` defaults).
-- Optional inference-time exploration may be available via an ``--epsilon`` argument (if enabled).
+- Logs are written under a server log folder.
+- Optional inference-time exploration may be available via an ``--epsilon`` argument if enabled.
 
-Training (offline)
-~~~~~~~~~~~~~~~~~~
+Training
+~~~~~~~~
 
 .. code-block:: bash
 
    python train_dqn.py
 
-Training script behavior (typical flow):
+Training typically:
 
-- Initializes ``ABREnv`` (imported from your server env code).
-- Iterates episodes, selects actions with epsilon-greedy, collects transitions.
-- Trains using replay samples and periodically saves model checkpoints.
+- initializes ``ABREnv``
+- selects actions with epsilon-greedy exploration
+- stores transitions into replay memory
+- trains from replay samples
+- periodically updates the target network and saves checkpoints
 
-Architecture overview
+Overview
+--------
+
+Server runtime flow
+~~~~~~~~~~~~~~~~~~~
+
+1. A player or shim POSTs per-chunk playback and download statistics to the server.
+2. The server updates a history state tensor, computes a QoE reward for logging,
+   and chooses the next quality index from predicted Q-values.
+3. The response body is the next quality index as plain text.
+
+At end-of-video, the server may return ``REFRESH`` and reset its internal episode state.
+
+Training flow
+~~~~~~~~~~~~~
+
+The training script follows a standard replay-based value-learning setup:
+
+- step the ABR environment
+- collect transitions ``(s, a, r, s', done)``
+- sample minibatches from replay memory
+- compute Double-DQN targets
+- optimize the online network and periodically sync the target network
+
+State, Action, Reward
 ---------------------
 
-Runtime flow:
-
-1. A player (or shim) POSTs per-chunk playback/download statistics to the server.
-2. The server updates a history state tensor (``S_INFO × S_LEN``), computes a QoE reward for logging, and chooses the next quality index from Q-values.
-3. The response body is the next quality index (integer). At end-of-video, it may return ``REFRESH`` and reset its internal state.
-
 State space
------------
+~~~~~~~~~~~
 
 The server uses a Pensieve-style state tensor with:
 
@@ -78,28 +99,28 @@ The state is typically rolled each step, appending a new observation column.
 
 Common meaning for each of the 6 rows:
 
-0. Last selected bitrate (normalized)
-1. Buffer level (normalized)
-2. Throughput estimate from last download
-3. Download time (normalized)
-4. Next chunk sizes for all qualities
-5. Remaining chunks (normalized)
+0. last selected bitrate, normalized
+1. buffer level, normalized
+2. throughput estimate from last download
+3. download time, normalized
+4. next chunk sizes for all qualities
+5. remaining chunks, normalized
 
 Action space
-------------
+~~~~~~~~~~~~
 
-The action is the discrete **quality index** in:
+The action is the discrete quality index in:
 
-- ``[0, A_DIM-1]`` where ``A_DIM`` equals the number of available bitrates.
+- ``[0, A_DIM - 1]`` where ``A_DIM`` equals the number of available bitrates
 
-QoE reward (logged per chunk)
------------------------------
+Reward function
+~~~~~~~~~~~~~~~
 
-The server computes a QoE reward (usually for logging/analysis):
+The server computes a QoE reward, usually for logging and analysis:
 
-- Bitrate utility term (Mbps)
-- Stall penalty using incremental rebuffer time
-- Smoothness penalty proportional to bitrate change
+- bitrate utility term in Mbps
+- stall penalty using incremental rebuffer time
+- smoothness penalty proportional to bitrate change
 
 Typical form:
 
@@ -112,9 +133,9 @@ Typical form:
 Where:
 
 - :math:`b` is bitrate in kbps
-- :math:`\Delta t_{stall}` is incremental stall time (seconds)
-- :math:`\alpha` is rebuffer penalty (e.g., 20)
-- :math:`\beta` is smoothness penalty (e.g., 1)
+- :math:`\Delta t_{stall}` is incremental stall time in seconds
+- :math:`\alpha` is rebuffer penalty
+- :math:`\beta` is smoothness penalty
 
 HTTP API
 --------
@@ -127,7 +148,7 @@ The server expects a JSON payload with per-chunk fields such as:
 - ``lastquality`` (int)
 - ``lastRequest`` (int) segment index
 - ``buffer`` (float) seconds
-- ``RebufferTime`` (float) cumulative rebuffer time (ms)
+- ``RebufferTime`` (float) cumulative rebuffer time in ms
 - ``lastChunkStartTime`` / ``lastChunkFinishTime`` (ms timestamps)
 - ``lastChunkSize`` (bytes)
 
@@ -136,57 +157,94 @@ If malformed or missing fields, the server returns an error response.
 Response
 ~~~~~~~~
 
-- Returns the next quality index as **plain text** (e.g., ``"0"`` … ``"5"``).
-- At end-of-video, may return ``"REFRESH"`` and reset episode state.
-
-Logging format
---------------
-
-The server writes one line per chunk with fields like:
-
-.. code-block:: text
-
-   time  bitrate_kbps  buffer_s  rebuf_delta_s  chunk_size_bytes  fetch_time_ms  reward
-
-Use these logs to plot bitrate/buffer/stall behavior and reward distributions.
+- returns the next quality index as plain text, for example ``"0"`` to ``"5"``
+- at end-of-video, may return ``"REFRESH"`` and reset episode state
 
 Movie manifest format
 ---------------------
 
 The server expects a movie manifest JSON containing:
 
-- segment duration (ms)
-- bitrate ladder (kbps)
-- per-segment per-quality sizes (often in bits)
+- segment duration in ms
+- bitrate ladder in kbps
+- per-segment, per-quality sizes, often stored in bits
 
-Model implementation (dqn.py)
------------------------------
+Implementation
+--------------
+
+Model implementation (``dqn.py``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Typical Double-DQN components:
 
-- Replay buffer (deque)
-- Evaluation network and target network
-- Double-DQN bootstrapped targets:
-  - Next action from eval net
-  - Next Q value from target net
-- Target network updated periodically or via soft updates (Polyak averaging)
+- replay buffer
+- online evaluation network and target network
+- Double-DQN bootstrapped targets
+- periodic hard target updates or soft updates, depending on implementation
 
-Training driver (train_dqn.py)
-------------------------------
+Core idea
+^^^^^^^^^
+
+DQN selects the action with the highest estimated Q-value:
+
+.. math::
+
+   a^* = \arg\max_a Q(s, a)
+
+In Double-DQN, action selection and target evaluation are decoupled to reduce overestimation.
+
+Training driver (``train_dqn.py``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The training loop typically performs:
 
 - epsilon-greedy action selection
-- step environment
-- store transition in replay
-- train on minibatches
+- environment stepping
+- transition storage in replay memory
+- minibatch optimization
+- target-network synchronization
 - periodic checkpointing
 
-Troubleshooting
----------------
+Using a trained model
+---------------------
 
-Model not found
+Start the server with a saved checkpoint:
+
+.. code-block:: bash
+
+   python dqn_server.py --host localhost --port 8606 \
+     --movie ../movie_4g.json \
+     --model server/models_dqn/dqn_ep_400.pth \
+     --debug --verbose
+
+Evaluation note:
+
+- for deterministic evaluation, use greedy action selection
+- for exploratory testing, keep a small epsilon if supported by the server
+
+Logging and Troubleshooting
+---------------------------
+
+Logging
+~~~~~~~
+
+The server writes one line per chunk with fields such as:
+
+.. code-block:: text
+
+   time  bitrate_kbps  buffer_s  rebuf_delta_s  chunk_size_bytes  fetch_time_ms  reward
+
+Use these logs to analyze bitrate, buffer, stall behavior, and reward trends.
+
+Troubleshooting
 ~~~~~~~~~~~~~~~
 
-If the checkpoint path is wrong, start the server with a valid ``--model`` path
-or train a model first and point to the saved ``.pth`` file.
+Model not found:
+
+- verify the ``--model`` path
+- train a model first if no checkpoint exists
+
+Runtime issues:
+
+- confirm the movie manifest path is valid
+- check that the bitrate ladder matches the action dimension used by the model

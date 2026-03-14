@@ -1,11 +1,25 @@
 Algorithms
 ==========
 
-This documentation collects the Adaptive Bitrate (ABR) algorithms implemented in this repository across classical heuristics, control-based methods, remote / shim-based services, and reinforcement-learning approaches.
+This documentation contains Adaptive Bitrate (ABR) algorithms implementaton details.
+This repository covers wide range of algorithm from classical heuristics, greedy algorithms, 
+control-based methods, reinforcement-learning approaches to state of the art LLM approaches to this problem.
 
-ABR algorithms all address the same sequential decision problem: for each chunk, choose the next representation using bandwidth evidence, buffer occupancy, latency, and video progress so that overall Quality of Experience (QoE) remains high.
+.. toctree::
+   :maxdepth: 2
+   :caption: Table of contents
 
-A representative chunk-level QoE objective used repeatedly throughout the documentation is
+   standard
+   rl
+   llm
+   pensieve
+   ppo
+   dqn
+   
+Problem: All ABR algorithms address the same decision problem: for each chunk, choose the next representation using data points such as bandwidth, buffer occupancy, latency, Throughut history, video progress, etc., 
+in a way that overall Quality of Experience (QoE) remains high.
+
+QoE objective used repeatedly throughout the documentation is:
 
 .. math::
 
@@ -13,40 +27,20 @@ A representative chunk-level QoE objective used repeatedly throughout the docume
          - \lambda_r \, \Delta t_{\mathrm{stall}}
          - \lambda_s \frac{|b_t - b_{t-1}|}{1000}
 
-where the first term rewards quality, the second penalizes stalls, and the third penalizes abrupt switching.
 
-.. toctree::
-   :maxdepth: 2
-   :caption: ABR Algorithms
+where:
 
-   standard
-   rl
-   pensieve
-   ppo
-   dqn
-   llm
+- :math:`R_q` is the bitrate of quality level :math:`q`
+- :math:`\hat{T}` is the current throughput estimatewhere the first term rewards quality, the second penalizes stalls, and the third penalizes abrupt switching.
 
+We start with :doc:`standard` classical, hueristics and control-based algorithms.
+Classical heuristics algorithm like RB, BBA, BOLA, MPC, and remote / server-side ABR methods.
 
-
-
-Start with :doc:`standard` for the classical and control-based baselines.
-Then read :doc:`rl` for the modern Gym/SB3 workflow and held-out evaluation protocol.
- Use :doc:`pensieve`, :doc:`ppo`, and :doc:`dqn` when you want server-specific implementation details or historical RL stacks without Gym.
-
-Classical heuristics
---------------------
-   Classical heuristics algorithm like RB, BBA, BOLA, MPC, and remote / server-side ABR methods.
-
-RL Algorithms with AbrGym
--------------------------
-   ABR with Gym and Stable-Baselines3 / SB3-Contrib RL workflows over ``AbrStreamingEnv`` using FCC ``fcc-train`` / ``fcc-valid`` / ``fcc-test`` Mahimahi datasets.
-
-RL implementation without Gym
--------------------------
-   Legacy or shim-server RL pages, retained separately because they document server-oriented runtime stacks and training/inference implementations in more detail.
-
-LLM-Based
----------
-designed to support multiple pretrained language model (PLM) families and
+Then discuss both typical torch/TF based :doc:`rl` implementation and then introduce modern Abr Gym RL workflow. 
+In traditianl RL approach we discuss complexity and implement :doc:`pensieve`, :doc:`ppo`, and :doc:`dqn` from scratch
+Legacy or shim-server RL implementation retained separately because they document server-oriented runtime stacks and training/inference implementations in more detail.
+ABR with Gym and Stable-Baselines3 / SB3-Contrib RL workflows over ``AbrStreamingEnv`` using FCC ``fcc-train`` / ``fcc-valid`` / ``fcc-test`` Mahimahi datasets.
+when you want server-specific implementation details or historical RL stacks without Gym.
+Then we use Gym for LLM ...designed to support multiple pretrained language model (PLM) families and
 sizes.
 

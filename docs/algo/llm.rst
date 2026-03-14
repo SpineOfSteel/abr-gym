@@ -1,16 +1,225 @@
-LLM
-===
+LLM Algorithms
+==============
+
+
+References
+----------
+
+The LLM-based ABR pipeline described here builds on the repository implementation and its supported PLM families. When writing broader documentation or a paper section, it is useful to cite both the ABR framework and the underlying pretrained model families used for adaptation and evaluation.
+
+Representative references to include are:
+
+- LLaMA / Llama 2 papers for the LLaMA family
+- the GPT-2 paper for GPT-style decoder backbones
+- the T5 paper for text-to-text transfer transformers
+- the OPT paper for open pretrained transformers
+- the Mistral technical report or release paper for the Mistral family
+
+You can later replace this section with full bibliography entries once your documentation build is connected to a shared references file.
+
+
+.. contents::
+   :local:
+   :depth: 2
 
 Overview
 --------
 
-This section documents the **LLM-based adaptive bitrate (ABR) framework** used in this repository.
-The implementation is based on the `Genet <https://github.com/GenetProject/Genet/tree/main>`_
-repository, extended with components for experience-pool generation, state encoding,
-parameter-efficient adaptation, and Transformer-based offline reinforcement learning.
+This chapter documents the **LLM-based adaptive bitrate (ABR) framework** used in this repository. The implementation extends a Genet-style pipeline with experience-pool generation, structured state encoding, parameter-efficient adaptation, and Transformer-based policy evaluation for bitrate selection.
 
-The framework is designed to support multiple pretrained language model (PLM) families and
-sizes. In the code, the supported model types are:
+Unlike classical ABR methods such as RB, BB, or BOLA, the LLM pipeline uses a pretrained language model (PLM) backbone as a sequence model over encoded ABR state. The optimization goal is still the same: deliver high visual quality while reducing rebuffering and avoiding unnecessary bitrate oscillation.
+
+The framework supports multiple PLM families. In this repository, the main documented experimental focus is **LLaMA / Llama2 7B**, but the code structure is designed so the same adaptation workflow can be applied to other backbones such as **GPT-2**, **T5-LM**, **OPT**, and **Mistral**.
+
+A typical workflow is:
+
+1. generate or load an ABR experience pool
+2. encode ABR observations into a model-ready representation
+3. adapt a pretrained backbone using low-rank updates
+4. evaluate the adapted model as a bitrate-selection policy
+
+
+Create the LLM environment:
+
+.. code-block:: bash
+
+   conda create -n abr_netllm python=3.8.10
+   conda activate abr_netllm
+   pip install torch==2.1.0
+   pip install numpy==1.24.4
+   pip install munch==4.0.0
+   pip install openprompt==1.0.1
+   pip install transformers==4.34.1
+   pip install peft==0.6.2
+
+The main documented experiment in this repository focuses on a LLaMA-based run:
+
+.. code-block:: bash
+
+   python run_plm.py --adapt \
+     --grad-accum-steps 32 \
+     --plm-type llama \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0 \
+     --lr 0.0001 \
+     --warmup-steps 2000 \
+     --num-epochs 80 \
+     --eval-per-epoch 2
+
+To test an adapted model:
+
+.. code-block:: bash
+
+   python run_plm.py --test \
+     --plm-type llama \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0
+
+LLaMA
+-----
+
+Primary documented configuration: ``--plm-type llama --plm-size small``
+
+**LLaMA** is the primary LLM family emphasized in this repository. The main experiment is described around **Llama2 7B**, adapted for ABR decision-making through parameter-efficient fine-tuning rather than full end-to-end retraining.
+
+In the codebase, a representative configuration is:
+
+.. code-block:: python
+
+   plm_type = "llama"
+   plm_size = "small"
+
+The LLaMA workflow typically consists of:
+
+1. collecting or generating an experience pool from ABR trajectories
+2. encoding state variables such as throughput history, buffer level, chunk metadata, and prior actions
+3. adapting the base LLaMA model using low-rank updates
+4. testing the adapted model as a bitrate-selection policy
+
+The default experience pool is stored at:
+
+.. code-block:: text
+
+   artifacts/exp_pools/exp_pool.pkl
+
+To test a specific fine-tuned checkpoint:
+
+.. code-block:: bash
+
+   python run_plm.py --test \
+     --plm-type llama \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0 \
+     --model-dir your_finetuned_llm_dir
+
+GPT-2
+-----
+
+Supported family in the framework: ``gpt2``
+
+**GPT-2** represents the GPT-style autoregressive Transformer option in this framework. It follows the same ABR adaptation pipeline as LLaMA, but uses the GPT-2 backbone instead.
+
+In this setup, the ABR environment state is not treated as free-form text. Numerical features such as throughput history, buffer occupancy, chunk size information, and past bitrate choices are first transformed into a structured representation that the model can process.
+
+A representative adaptation command is:
+
+.. code-block:: bash
+
+   python run_plm.py --adapt \
+     --plm-type gpt2 \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0
+
+GPT-2 is useful in this repository as a comparison backbone for studying how different Transformer families behave under the same ABR state encoding and evaluation setup.
+
+T5-LM
+-----
+
+Supported family in the framework: ``t5-lm``
+
+**T5-LM** provides an alternative Transformer family that can be adapted within the same general pipeline. While architecturally different from GPT-style causal decoders, it is still integrated into the shared PLM runner so that ABR experiments can be compared under a common training and testing interface.
+
+In practice, T5-LM allows the repository to explore whether a different pretrained backbone family changes bitrate-selection quality, robustness, or adaptation efficiency.
+
+A representative invocation pattern is:
+
+.. code-block:: bash
+
+   python run_plm.py --adapt \
+     --plm-type t5-lm \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0
+
+OPT
+---
+
+Supported family in the framework: ``opt``
+
+**OPT** is another supported PLM family in the LLM-ABR framework. It can be inserted into the same adaptation loop used for LLaMA and GPT-2, making it useful for controlled experiments where the state encoder, experience pool, and evaluation protocol remain fixed while only the backbone changes.
+
+A representative invocation pattern is:
+
+.. code-block:: bash
+
+   python run_plm.py --adapt \
+     --plm-type opt \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0
+
+Using OPT in this way helps compare whether ABR performance differences are driven by the policy formulation itself or by the characteristics of the underlying Transformer family.
+
+Mistral
+-------
+
+Supported family in the framework: ``mistral``
+
+**Mistral** is included as a modern decoder-style model family supported by the framework. Within this repository, it fits into the same offline adaptation structure as the other backbones and can be evaluated under the same ABR traces and QoE objectives.
+
+A representative invocation pattern is:
+
+.. code-block:: bash
+
+   python run_plm.py --adapt \
+     --plm-type mistral \
+     --plm-size small \
+     --rank 128 \
+     --device cuda:0
+
+Mistral-based experiments are especially useful when comparing newer open-weight LLMs against older Transformer families under the same ABR state and reward design.
+
+Core Components
+---------------
+
+Experience Pool
+~~~~~~~~~~~~~~~
+
+The experience pool is the offline dataset used to adapt the PLM. It stores trajectories collected from ABR environments, usually generated by baseline policies.
+
+State Encoder
+~~~~~~~~~~~~~
+
+ABR state is numerical and structured rather than textual. The state encoder transforms features such as throughput history, buffer size, remaining chunks, chunk metadata, and previous actions into a representation suitable for the model backbone.
+
+Low-Rank Adaptation
+~~~~~~~~~~~~~~~~~~~
+
+The code uses parameter-efficient fine-tuning through low-rank adaptation. Instead of updating all parameters of the underlying model, small trainable low-rank modules are added.
+
+RL Policy
+~~~~~~~~~
+
+The ``rl_policy.py`` module implements the Transformer-based policy used for offline RL-style bitrate selection.
+
+Supported PLM Families and Sizes
+--------------------------------
+
+Supported model families include:
 
 - ``gpt2``
 - ``llama``
@@ -19,7 +228,7 @@ sizes. In the code, the supported model types are:
 - ``opt``
 - ``mistral``
 
-The supported model size labels are:
+Supported size labels include:
 
 - ``xxs``
 - ``xs``
@@ -29,241 +238,17 @@ The supported model size labels are:
 - ``xl``
 - ``xxl``
 
-Note that the actual parameter count depends on the PLM family. For example, the meaning of
-``small`` differs across model types. In this project, although the framework is general,
-the primary experiment focus is on **Llama2 7B**, represented in the code as:
+The actual parameter count depends on the PLM family, so the label ``small`` does not map to the same model size across all backbones.
 
-.. code-block:: python
-
-   plm_type = "llama"
-   plm_size = "small"
-
-What is ABR?
-------------
-
-Adaptive bitrate streaming is the process of selecting the bitrate of each upcoming video
-chunk according to current and recent network conditions. Video content is divided into
-chunks, and each chunk is encoded at several discrete bitrate levels. A higher bitrate
-usually provides better visual quality but also requires more bandwidth.
-
-In a typical ABR setting:
-
-- each episode corresponds to playback of one video over one network trace,
-- the agent observes throughput history, buffer occupancy, and remaining video content,
-- the action is the bitrate selected for the next chunk,
-- the objective is to maximize QoE by improving quality while reducing stalls and avoiding
-  excessive bitrate switching.
-
-The reward is typically a linear combination of selected bitrate, rebuffering penalty, and
-smoothness penalty.
-
-LLM-Based ABR
--------------
-
-This repository explores the use of pretrained language models as ABR policies. Instead of
-training a policy entirely from scratch, it:
-
-- collects trajectories from baseline ABR methods,
-- stores them in an experience pool,
-- encodes ABR states into model-ready representations,
-- adapts a pretrained language model using low-rank updates,
-- evaluates the adapted model as an ABR decision policy.
-
-Although the framework supports several LLM backbones, the experiments documented here focus
-specifically on **Llama2 7B**.
-
-Repository Structure
---------------------
-
-The repository is organized into baseline ABR components and PLM-based components.
-
-``artifacts/``
-~~~~~~~~~~~~~~
-
-Stores outputs and generated artifacts.
-
-- ``exp_pool/``:
-  Experience pool files used for LLM adaptation.
-- ``results/``:
-  Evaluation results, logs, and generated outputs.
-
-``data/``
-~~~~~~~~~
-
-Stores traces, video metadata, and checkpoints.
-
-- ``traces/``:
-  Bandwidth trace datasets.
-- ``videos/``:
-  Video specifications.
-- ``ft_plms/``:
-  Fine-tuned or adapted PLM checkpoints.
-- ``all_models/``:
-  Checkpoints for baseline methods.
-
-``baseline_specical/``
-~~~~~~~~~~~~~~~~~~~~~~
-
-Contains the code for running baseline ABR approaches. Most of this code is inherited from
-the Genet repository and related baseline implementations.
-
-``plm_special/``
-~~~~~~~~~~~~~~~~
-
-Contains the code for the LLM-based ABR pipeline.
-
-``plm_special/data/``
-^^^^^^^^^^^^^^^^^^^^^
-
-- ``exp_pool.py``:
-  Experience pool implementation for storing trajectories.
-- ``dataset.py``:
-  Dataset wrapper built on top of the experience pool.
-
-``plm_special/models/``
-^^^^^^^^^^^^^^^^^^^^^^^
-
-- ``state_encoder.py``:
-  Encodes ABR state features into a form suitable for PLM input.
-- ``gpt2.py``, ``llama.py``, ``opt.py``, ``mistral.py``, ``t5.py``:
-  Customized PLM backbones for ABR decision making.
-- ``low_rank.py``:
-  Implements low-rank adaptation modules.
-- ``rl_policy.py``:
-  Implements the Transformer-based offline RL policy.
-
-``plm_special/utils/``
-^^^^^^^^^^^^^^^^^^^^^^
-
-- ``plm_utils.py``:
-  Utilities for loading and configuring pretrained language models.
-- ``utils.py``:
-  Helper functions for processing and data handling.
-
-Top-level scripts
-~~~~~~~~~~~~~~~~~
-
-- ``trainer.py``:
-  Training logic for adapting PLMs to ABR.
-- ``evaluate.py``:
-  Evaluation pipeline for adapted models.
-- ``test.py``:
-  Testing utilities for measuring model performance.
-- ``generate_exp_pool.py``:
-  Generates the experience pool used for adaptation.
-- ``run_baseline.py``:
-  Entry point for running baseline ABR algorithms.
-- ``run_plm.py``:
-  Entry point for adapting and testing LLM-based ABR policies.
-
-Core Components
----------------
-
-Experience Pool
-~~~~~~~~~~~~~~~
-
-The experience pool is the offline dataset used to adapt the PLM. It stores trajectories
-collected from ABR environments, usually generated by baseline policies. These trajectories
-contain state-action-reward style information and serve as the training signal for the
-adapted LLM policy.
-
-State Encoder
-~~~~~~~~~~~~~
-
-ABR state is numerical and structured rather than textual. The state encoder transforms
-features such as:
-
-- throughput history,
-- buffer size,
-- remaining chunks,
-- chunk metadata,
-- previous actions,
-
-into a representation suitable for the model backbone.
-
-Low-Rank Adaptation
-~~~~~~~~~~~~~~~~~~~
-
-The code uses parameter-efficient fine-tuning through low-rank adaptation. Instead of
-updating all parameters of the underlying model, small trainable low-rank modules are added.
-This reduces memory usage and training cost while preserving most of the pretrained model.
-
-RL Policy
-~~~~~~~~~
-
-The ``rl_policy.py`` module implements the Transformer-based policy used for offline RL-style
-decision making. The adapted model receives encoded ABR state and predicts the bitrate action
-for the next chunk.
-
-Supported PLM Families and Sizes
---------------------------------
-
-The framework is designed to support multiple PLM backbones:
-
-- GPT-2
-- LLaMA
-- LLaVA
-- T5-LM
-- OPT
-- Mistral
-
-It also supports multiple size identifiers:
-
-- ``xxs``
-- ``xs``
-- ``small``
-- ``base``
-- ``large``
-- ``xl``
-- ``xxl``
-
-However, the experiments described in this documentation focus on **Llama2 7B only**,
-configured as:
-
-.. code-block:: bash
-
-   --plm-type llama --plm-size small
-
-This is the primary setting used for adaptation and evaluation.
-
-Environment Setup
+Running Baselines
 -----------------
 
-Environment for LLM-based ABR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create a Conda environment:
-
-.. code-block:: bash
-
-   conda create -n abr_netllm python=3.8.10
-   conda activate abr_netllm
-
-Install dependencies:
-
-.. code-block:: bash
-
-   pip install torch==2.1.0
-   pip install numpy==1.24.4
-   pip install munch==4.0.0
-   pip install openprompt==1.0.1
-   pip install transformers==4.34.1
-   pip install peft==0.6.2
-
-Environment for baselines
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Baseline methods require TensorFlow 1.x, so they must be run in a separate environment.
+Baseline methods are typically run from a separate TensorFlow-oriented environment:
 
 .. code-block:: bash
 
    conda create -n abr_tf python=3.7
    conda activate abr_tf
-
-Install dependencies:
-
-.. code-block:: bash
-
    pip install tensorflow-gpu==1.15
    pip install tensorboard==1.15.0
    pip install tensorboard-plugin-wit==1.8.0
@@ -274,187 +259,10 @@ Install dependencies:
    pip install pandas==1.1.5
    pip install tqdm==4.62.2
 
-Usage
------
-
-Llama2 7B experiment
-~~~~~~~~~~~~~~~~~~~~
-
-Although the codebase supports multiple PLM families, the main experiment here uses
-**Llama2 7B (`small`)**.
-
-Place the downloaded base model in:
-
-.. code-block:: text
-
-   ../downloaded_plms/llama2/small
-
-Adapt the model
-^^^^^^^^^^^^^^^
-
-To fine-tune or adapt Llama2 7B on the default experience pool:
+Then run representative baselines:
 
 .. code-block:: bash
 
-   python run_plm.py --adapt \
-       --grad-accum-steps 32 \
-       --plm-type llama \
-       --plm-size small \
-       --rank 128 \
-       --device cuda:0 \
-       --lr 0.0001 \
-       --warmup-steps 2000 \
-       --num-epochs 80 \
-       --eval-per-epoch 2
-
-This uses the default experience pool located at:
-
-.. code-block:: text
-
-   artifacts/exp_pools/exp_pool.pkl
-
-Generate a custom experience pool
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you want to generate a new experience pool:
-
-.. code-block:: bash
-
-   conda activate abr_tf
-   python generate_exp_pool.py \
-       --models genet \
-       --trace fcc-train \
-       --video video1 \
-       --trace-num 100 \
-       --cuda-id 0
-
-Then pass your generated pool to the PLM pipeline:
-
-.. code-block:: bash
-
-   python run_plm.py --adapt \
-       --grad-accum-steps 32 \
-       --plm-type llama \
-       --plm-size small \
-       --rank 128 \
-       --device cuda:0 \
-       --lr 0.0001 \
-       --warmup-steps 2000 \
-       --num-epochs 80 \
-       --eval-per-epoch 2 \
-       --exp-pool-path your_exp_pool_path
-
-Test the adapted model
-^^^^^^^^^^^^^^^^^^^^^^
-
-To test the fine-tuned Llama2 7B model:
-
-.. code-block:: bash
-
-   python run_plm.py --test \
-       --plm-type llama \
-       --plm-size small \
-       --rank 128 \
-       --device cuda:0
-
-To test a specific checkpoint:
-
-.. code-block:: bash
-
-   python run_plm.py --test \
-       --plm-type llama \
-       --plm-size small \
-       --rank 128 \
-       --device cuda:0 \
-       --model-dir your_finetuned_llm_dir
-
-Pretrained adapted checkpoint
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The authors provide a fine-tuned checkpoint for Llama2 7B. After downloading it and storing
-it in:
-
-.. code-block:: text
-
-   data/ft_plms/try_llama2_7b
-
-run:
-
-.. code-block:: bash
-
-   python run_plm.py --test \
-       --plm-type llama \
-       --plm-size small \
-       --rank 128 \
-       --device cuda:0 \
-       --model-dir data/ft_plms/try_llama2_7b
-
-Running Baselines
------------------
-
-To run the baseline ABR methods:
-
-.. code-block:: bash
-
-   conda activate abr_tf
    python run_baseline.py --model genet --cuda-id 0
    python run_baseline.py --model mpc
    python run_baseline.py --model bba
-
-The repository reuses released checkpoints for these baselines and does not provide baseline
-training code.
-
-Experiment Focus
-----------------
-
-While the framework is general enough to support several model families and sizes, the
-experimental focus in this repository is intentionally narrow:
-
-- model family: ``llama``
-- model size: ``small``
-- concrete backbone: **Llama2 7B**
-
-This makes the implementation easier to reproduce and keeps comparisons consistent across
-training and evaluation.
-
-Why This Matters
-----------------
-
-Traditional ABR algorithms rely on heuristics, explicit control logic, or policies trained
-specifically for ABR. This project studies whether a pretrained language model can be adapted
-into a networking control policy using offline trajectories and lightweight fine-tuning.
-
-The broader value of this approach is that it explores:
-
-- transfer from pretrained foundation models to networking tasks,
-- parameter-efficient adaptation for decision making,
-- sequence modeling as a unifying view of ABR control.
-
-References
-----------
-
-If you use this repository or its LLM-based ABR implementation, cite the following works.
-
-.. code-block:: bibtex
-
-   @inproceedings{wu2024netllm,
-         author = {Wu, Duo and Wang, Xianda and Qiao, Yaqi and Wang, Zhi and Jiang, Junchen and Cui, Shuguang and Wang, Fangxin},
-         title = {NetLLM: Adapting Large Language Models for Networking},
-         year = {2024},
-         publisher = {Association for Computing Machinery},
-         address = {New York, NY, USA},
-         doi = {10.1145/3651890.3672268},
-         booktitle = {Proceedings of the ACM SIGCOMM 2024 Conference},
-         pages = {661--678},
-         numpages = {18},
-         location = {Sydney, NSW, Australia},
-         series = {ACM SIGCOMM '24}
-   }
-
-   @inproceedings{xia2022genet,
-     title={Genet: automatic curriculum generation for learning adaptation in networking},
-     author={Xia, Zhengxu and Zhou, Yajie and Yan, Francis Y and Jiang, Junchen},
-     booktitle={Proceedings of the ACM SIGCOMM 2022 Conference},
-     pages={397--413},
-     year={2022}
-   }
