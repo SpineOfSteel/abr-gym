@@ -21,7 +21,7 @@ Quick navigation
    :maxdepth: 2
    :caption: Contents:
 
-   algo/index2
+   algo/index
    dataset
    env/index   
    sim/index
