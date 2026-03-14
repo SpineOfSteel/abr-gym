@@ -1,5 +1,2 @@
-pandas
-pyarrow
-mpld3
 stable_baselines3
 
