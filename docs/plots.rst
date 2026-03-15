@@ -195,77 +195,66 @@ The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense cit
 
 .. figure:: ../PLOT/graphs/bus-map.jpg
    :alt: Bus route map
-   :width: 75%
+   :width:  100%
    :align: center
 
    Bus route map.
 
 .. figure:: ../PLOT/graphs/bus-bw.png
    :alt: Observed bandwidth along the bus route
-   :width: 75%
+   :width:  100%
    :align: center
 
-   Observed bandwidth along the bus route.
-
-The bus bandwidth profile is variable but not dominated by one single collapse. That makes bus a good test of how smoothly a controller reacts to medium-scale fluctuation.
-The updated bus bandwidth view shows a route that starts in a lower and more irregular throughput region, then transitions into a long, bursty high-capacity stretch with many samples between roughly 2--5 Mbps and repeated spikes above 6 Mbps. Rather than one catastrophic outage, bus exhibits sustained volatility with a clear mid-route improvement, so it is a good test of whether a controller can climb quickly when capacity improves without becoming unstable.
+   Observed bandwidth along the bus route. The bus bandwidth profile is variable but not dominated by one single collapse. That makes bus a good test of how smoothly a controller reacts to medium-scale fluctuation. The updated bus bandwidth view shows a route that starts in a lower and more irregular throughput region, then transitions into a long, bursty high-capacity stretch with many samples between roughly 2--5 Mbps and repeated spikes above 6 Mbps. Rather than one catastrophic outage, bus exhibits sustained volatility with a clear mid-route improvement, so it is a good test of whether a controller can climb quickly when capacity improves without becoming unstable.
 
 .. figure:: ../PLOT/graphs/baselines-bus-br.png
    :alt: Mean video bitrate for bus traces
-   :width: 75%
+   :width:  100%
+   :align: center
 
-   Mean video bitrate for bus traces.
-
-   RobustMPC has the highest average bitrate on bus, with Pen-PPO, Pensieve, and NetLLM close behind.
+   Mean video bitrate for bus traces.   RobustMPC has the highest average bitrate on bus, with Pen-PPO, Pensieve, and NetLLM close behind.
 
 .. figure:: ../PLOT/graphs/baselines-bus-sr.png
    :alt: Bitrate smoothness for bus traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Bitrate smoothness for bus traces.
-
-Smoothness favors NetLLM, Pen-PPO, and Pensieve. BBA is the least stable.
+   Bitrate smoothness for bus traces. Smoothness favors NetLLM, Pen-PPO, and Pensieve. BBA is the least stable.
 
 .. figure:: ../PLOT/graphs/baselines-bus-st.png
    :alt: Stall burden for bus traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Time spent on stall for bus traces.
-
-Pen-PPO has the lowest stall on bus, while BBA and RobustMPC show larger spikes.
+   Time spent on stall for bus traces.Pen-PPO has the lowest stall on bus, while BBA and RobustMPC show larger spikes.
 
 .. figure:: ../PLOT/graphs/baselines-bus-qoe.png
    :alt: QoE CDF for bus traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   QoE CDF for bus traces.
-
-   Pen-PPO is best on bus, with Pensieve and RobustMPC close behind.
+   QoE CDF for bus traces.    Pen-PPO is best on bus, with Pensieve and RobustMPC close behind.
 
 .. figure:: ../PLOT/graphs/baselines-bus-tradeoff.png
    :alt: Bitrate versus stall tradeoff for bus traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   Bitrate versus stall tradeoff for bus traces.
-
-The bus tradeoff view shows why raw bitrate is misleading. RobustMPC reaches the highest mean bitrate, but Pen-PPO sits much lower on stall and therefore offers the stronger overall operating point.
+   Bitrate versus stall tradeoff for bus traces. The bus tradeoff view shows why raw bitrate is misleading. RobustMPC reaches the highest mean bitrate, but Pen-PPO sits much lower on stall and therefore offers the stronger overall operating point.
 
 .. _car:
 
 Car
 ---
-The car route data includes **Oslo to Alesund**.
+
+From Fig 27 - 32
 
 .. figure:: ../PLOT/graphs/car-map.jpg
    :alt: Car route map
    :width:  100%
    :align: center
 
-   Car route map. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation.
+   Car route map. The car route data includes **Oslo to Alesund**. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation.
 
 .. figure:: ../PLOT/graphs/car-bw.png
    :alt: Observed bandwidth along the car route
@@ -276,21 +265,21 @@ The car route data includes **Oslo to Alesund**.
 
 .. figure:: ../PLOT/graphs/baselines-car-br.png
    :alt: Mean video bitrate for car traces
-   :width:  80%
+   :width:  100%
    :align: center
 
    Mean video bitrate for car traces.   BBA and RobustMPC are highest in bitrate, with Pen-PPO and Pensieve close behind.
 
 .. figure:: ../PLOT/graphs/baselines-car-sr.png
    :alt: Bitrate smoothness for car traces
-   :width:  80%
+   :width:  100%
    :align: center
 
    Bitrate smoothness for car traces.   NetLLM and Pen-PPO are much smoother than BBA and BOLA.
 
 .. figure:: ../PLOT/graphs/baselines-car-st.png
    :alt: Stall burden for car traces
-   :width:  80%
+   :width:  100%
    :align: center
 
    Time spent on stall for car traces.   The stall plot is decisive: NetLLM has zero mean stall, Pen-PPO is low, while BBA and RobustMPC suffer large failures.
@@ -304,7 +293,7 @@ The car route data includes **Oslo to Alesund**.
 
 .. figure:: ../PLOT/graphs/baselines-car-tradeoff.png
    :alt: Bitrate versus stall tradeoff for car traces
-   :width  100%
+   :width:  100%
    :align: center
 
    Bitrate versus stall tradeoff for car traces. The car tradeoff plot is a strong counterexample to bitrate-only analysis. BBA, RobustMPC, Pensieve, and Pen-PPO all cluster around similar bitrate, but NetLLM and Pen-PPO sit much lower on stall, which is why they look better in QoE.
@@ -313,277 +302,216 @@ The car route data includes **Oslo to Alesund**.
 
 Ferry
 -----
-
-The ferry route runs from **Nesoddtangen to Aker brygge**. Compared with land-only routes, it exposes the player to waterfront coverage changes and a different infrastructure geometry.
-
+From Fig. 33 - 39
 .. figure:: ../PLOT/graphs/ferry-map.jpg
    :alt: Ferry route map
-   :width: 70%
+   :width:  100%
    :align: center
 
-   Ferry route map.
+   Ferry route map. The ferry route runs from **Nesoddtangen to Aker brygge**. Compared with land-only routes, it exposes the player to waterfront coverage changes and a different infrastructure geometry.
 
 .. figure:: ../PLOT/graphs/ferry-bw.png
    :alt: Observed bandwidth along the ferry route
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Observed bandwidth along the ferry route.
-
-The ferry bandwidth profile is healthy for much of the route and then collapses sharply near the end, making late-session caution important.
-The updated ferry profile for ``ferry.nesoddtangen-oslo`` is structured in phases: an initially strong section with many samples around 3--5 Mbps and spikes beyond 6 Mbps, a broad middle trough, a renewed high-capacity segment, and then a sharp disruption where the bandwidth briefly drops close to zero before recovering again. This stop--recover pattern is important because it rewards controllers that can both exploit the strong open-water stretches and quickly back off around abrupt weak-signal intervals.
+   Observed bandwidth along the ferry route. The ferry bandwidth profile is healthy for much of the route and then collapses sharply near the end, making late-session caution important. The updated ferry profile for ``ferry.nesoddtangen-oslo`` is structured in phases: an initially strong section with many samples around 3--5 Mbps and spikes beyond 6 Mbps, a broad middle trough, a renewed high-capacity segment, and then a sharp disruption where the bandwidth briefly drops close to zero before recovering again. This stop--recover pattern is important because it rewards controllers that can both exploit the strong open-water stretches and quickly back off around abrupt weak-signal intervals.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-br.png
    :alt: Mean video bitrate for ferry traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Mean video bitrate for ferry traces.
-
-BBA and RobustMPC achieve the highest mean bitrate on ferry, with Pensieve and Pen-PPO close behind.
+   Mean video bitrate for ferry traces. BBA and RobustMPC achieve the highest mean bitrate on ferry, with Pensieve and Pen-PPO close behind.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-sr.png
    :alt: Bitrate smoothness for ferry traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Bitrate smoothness for ferry traces.
-
-Smoothness favors NetLLM and Pen-PPO.
+   Bitrate smoothness for ferry traces. Smoothness favors NetLLM and Pen-PPO.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-st.png
    :alt: Stall burden for ferry traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Time spent on stall for ferry traces.
-
-Pen-PPO is the safest ferry controller, while BBA and RobustMPC incur larger failures.
+   Time spent on stall for ferry traces. Pen-PPO is the safest ferry controller, while BBA and RobustMPC incur larger failures.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-qoe.png
    :alt: QoE CDF for ferry traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   QoE CDF for ferry traces.
-
-Ferry is one of Pen-PPO's strongest groups.
+   QoE CDF for ferry traces. Ferry is one of Pen-PPO's strongest groups.
 
 .. figure:: ../PLOT/graphs/baselines-ferry-tradeoff.png
    :alt: Bitrate versus stall tradeoff for ferry traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   Bitrate versus stall tradeoff for ferry traces.
-
-The ferry tradeoff plot again shows why bitrate is insufficient. BBA and RobustMPC sit to the right, but they also sit much higher on stall. Pen-PPO is closer to the bottom with only a small bitrate sacrifice.
+   Bitrate versus stall tradeoff for ferry traces. The ferry tradeoff plot again shows why bitrate is insufficient. BBA and RobustMPC sit to the right, but they also sit much higher on stall. Pen-PPO is closer to the bottom with only a small bitrate sacrifice.
 
 .. _metro:
 
-Metro
+Metro (From Fig. 40 - 46)
 -----
-
-The metro route runs from **Kalbakken to Jernbanetorget**. Part of the route is underground in a tunnel with very weak signal, making metro one of the hardest mobility stress tests in the set.
-
 .. figure:: ../PLOT/graphs/metro-map.jpg
    :alt: Metro route map
-   :width: 80%
+   :width:  100%
    :align: center
 
-   Metro route map.
+   Metro route map. The metro route runs from **Kalbakken to Jernbanetorget**. Part of the route is underground in a tunnel with very weak signal, making metro one of the hardest mobility stress tests in the set.
 
 .. figure:: ../PLOT/graphs/metro-bw.png
    :alt: Observed bandwidth along the metro route
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Observed bandwidth along the metro route.
-
-The metro bandwidth profile shows the collapse region clearly. Tunnel entry and exit are where reckless adaptation is punished.
-The updated metro trace for ``metro.kalbakken-jernbanetorget`` is less about one complete collapse and more about persistent moderate bandwidth with noisy local variation: much of the route stays around roughly 0.5--2.2 Mbps, with occasional spikes toward 4--5 Mbps. That makes metro a good benchmark for conservative adaptation under sustained uncertainty, where frequent medium-scale changes matter more than a single dramatic outage.
+   Observed bandwidth along the metro route. The metro bandwidth profile shows the collapse region clearly. Tunnel entry and exit are where reckless adaptation is punished. The updated metro trace for ``metro.kalbakken-jernbanetorget`` is less about one complete collapse and more about persistent moderate bandwidth with noisy local variation: much of the route stays around roughly 0.5--2.2 Mbps, with occasional spikes toward 4--5 Mbps. That makes metro a good benchmark for conservative adaptation under sustained uncertainty, where frequent medium-scale changes matter more than a single dramatic outage.
 
 .. figure:: ../PLOT/graphs/baselines-metro-br.png
    :alt: Mean video bitrate for metro traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Mean video bitrate for metro traces.
-
-BBA and RobustMPC lead in bitrate, but the gap over Pen-PPO and Pensieve is small.
+   Mean video bitrate for metro traces. BBA and RobustMPC lead in bitrate, but the gap over Pen-PPO and Pensieve is small.
 
 .. figure:: ../PLOT/graphs/baselines-metro-sr.png
    :alt: Bitrate smoothness for metro traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Bitrate smoothness for metro traces.
-
-NetLLM and Pen-PPO are the smoothest metro controllers.
+   Bitrate smoothness for metro traces. NetLLM and Pen-PPO are the smoothest metro controllers.
 
 .. figure:: ../PLOT/graphs/baselines-metro-st.png
    :alt: Stall burden for metro traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Time spent on stall for metro traces.
-
-Pen-PPO, NetLLM, and BOLA achieve zero mean stall on metro, while BBA and RobustMPC incur the main failures.
+   Time spent on stall for metro traces. Pen-PPO, NetLLM, and BOLA achieve zero mean stall on metro, while BBA and RobustMPC incur the main failures.
 
 .. figure:: ../PLOT/graphs/baselines-metro-qoe.png
    :alt: QoE CDF for metro traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   QoE CDF for metro traces.
-
-Metro is another strong result for Pen-PPO.
+   QoE CDF for metro traces. Metro is another strong result for Pen-PPO.
 
 .. figure:: ../PLOT/graphs/baselines-metro-tradeoff.png
    :alt: Bitrate versus stall tradeoff for metro traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   Bitrate versus stall tradeoff for metro traces.
-
-Metro makes the bitrate problem obvious. BBA has the highest bitrate and still loses badly because its point sits far above the low-stall cluster. In tunnel-heavy mobility, a slightly lower bitrate with near-zero stall is clearly preferable.
+   Bitrate versus stall tradeoff for metro traces. Metro makes the bitrate problem obvious. BBA has the highest bitrate and still loses badly because its point sits far above the low-stall cluster. In tunnel-heavy mobility, a slightly lower bitrate with near-zero stall is clearly preferable.
 
 .. _train:
 
 Train
 -----
-
 The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment.
-
 .. figure:: ../PLOT/graphs/train-map.jpg
    :alt: Train route map
-   :width: 55%
+   :width:  100%
    :align: center
 
    Train route map.
 
 .. figure:: ../PLOT/graphs/train-bw.png
    :alt: Observed bandwidth along the train route
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Observed bandwidth along the train route.
-
-The train bandwidth profile is less catastrophic than car, but still variable enough to reward careful adaptation.
-The updated train bandwidth figures show strong directional variability across both ``train.oslo-vestby`` and ``train.vestby-oslo``. In both directions the route alternates between low-throughput pockets, bursty mid-range regions, and occasional large spikes above 5 Mbps, but the exact placement and severity of those pockets differ between directions. This makes train useful for evaluating whether an ABR method generalizes across the same corridor when the temporal structure of capacity changes is not symmetric.
+   Observed bandwidth along the train route. The train bandwidth profile is less catastrophic than car, but still variable enough to reward careful adaptation. The updated train bandwidth figures show strong directional variability across both ``train.oslo-vestby`` and ``train.vestby-oslo``. In both directions the route alternates between low-throughput pockets, bursty mid-range regions, and occasional large spikes above 5 Mbps, but the exact placement and severity of those pockets differ between directions. This makes train useful for evaluating whether an ABR method generalizes across the same corridor when the temporal structure of capacity changes is not symmetric.
 
 .. figure:: ../PLOT/graphs/baselines-train-br.png
    :alt: Mean video bitrate for train traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Mean video bitrate for train traces.
-
-Train bitrate is led by BBA and RobustMPC, with Pen-PPO and Pensieve only slightly lower.
+   Mean video bitrate for train traces. Train bitrate is led by BBA and RobustMPC, with Pen-PPO and Pensieve only slightly lower.
 
 .. figure:: ../PLOT/graphs/baselines-train-sr.png
    :alt: Bitrate smoothness for train traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Bitrate smoothness for train traces.
-
-NetLLM and Pen-PPO are the smoothest, while BBA and BOLA switch more.
+   Bitrate smoothness for train traces. NetLLM and Pen-PPO are the smoothest, while BBA and BOLA switch more.
 
 .. figure:: ../PLOT/graphs/baselines-train-st.png
    :alt: Stall burden for train traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Time spent on stall for train traces.
-
-Train stall is where BBA collapses. Despite its bitrate lead, it has by far the largest rebuffer burden.
+   Time spent on stall for train traces. Train stall is where BBA collapses. Despite its bitrate lead, it has by far the largest rebuffer burden.
 
 .. figure:: ../PLOT/graphs/baselines-train-qoe.png
    :alt: QoE CDF for train traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   QoE CDF for train traces.
-
-Pen-PPO is best on train, with RobustMPC and NetLLM close behind.
+   QoE CDF for train traces. Pen-PPO is best on train, with RobustMPC and NetLLM close behind.
 
 .. figure:: ../PLOT/graphs/baselines-train-tradeoff.png
    :alt: Bitrate versus stall tradeoff for train traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   Bitrate versus stall tradeoff for train traces.
-
-The train tradeoff plot makes it clear that BBA's extra bitrate is too expensive. The better operating region is occupied by Pen-PPO, NetLLM, and RobustMPC, which remain much lower on stall.
+   Bitrate versus stall tradeoff for train traces. The train tradeoff plot makes it clear that BBA's extra bitrate is too expensive. The better operating region is occupied by Pen-PPO, NetLLM, and RobustMPC, which remain much lower on stall.
 
 .. _tram:
 
 Tram
 ----
-
-The tram portion includes multiple urban routes such as **Ljabru to Jernbanetorget**, **Jernbanetorget to Ljabru**, and **Jernbanetorget to University hospital**. These stop-and-go traces test whether a controller can avoid overreacting to recurring medium-scale changes.
-
 .. figure:: ../PLOT/graphs/tram-map.jpg
    :alt: Tram route map
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Tram route map.
+   Tram route map. The tram portion includes multiple urban routes such as **Ljabru to Jernbanetorget**, **Jernbanetorget to Ljabru**, and **Jernbanetorget to University hospital**. These stop-and-go traces test whether a controller can avoid overreacting to recurring medium-scale changes.
 
 .. figure:: ../PLOT/graphs/tram-bw.png
    :alt: Observed bandwidth along the tram route
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Observed bandwidth along the tram route.
-
-The tram bandwidth profile is noisy but not dominated by a single total collapse, so stability matters more than peak chasing.
+   Observed bandwidth along the tram route. The tram bandwidth profile is noisy but not dominated by a single total collapse, so stability matters more than peak chasing.
 The updated tram views show clear directional asymmetry. ``tram.ljabru-jernbanetorget`` contains a noisier and more bursty middle section with several tall spikes, while ``tram.jernbanetorget-ljabru`` is more compressed and generally stays within a lower range. Across both directions, most of the route lives in a moderate-bandwidth regime with frequent short swings rather than long hard outages, so tram remains a strong stability-focused benchmark where overshooting on short-lived peaks can still hurt consistency.
 
 .. figure:: ../PLOT/graphs/baselines-tram-br.png
    :alt: Mean video bitrate for tram traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Mean video bitrate for tram traces.
-
-On tram, the bitrate differences are fairly small. BBA and RobustMPC are slightly higher, while NetLLM is most conservative.
+   Mean video bitrate for tram traces. On tram, the bitrate differences are fairly small. BBA and RobustMPC are slightly higher, while NetLLM is most conservative.
 
 .. figure:: ../PLOT/graphs/baselines-tram-sr.png
    :alt: Bitrate smoothness for tram traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Bitrate smoothness for tram traces.
-
-Tram smoothness strongly favors NetLLM and Pen-PPO.
+   Bitrate smoothness for tram traces. Tram smoothness strongly favors NetLLM and Pen-PPO.
 
 .. figure:: ../PLOT/graphs/baselines-tram-st.png
    :alt: Stall burden for tram traces
-   :width: 85%
+   :width:  100%
    :align: center
 
-   Time spent on stall for tram traces.
-
-BBA has several large stall spikes, while Pensieve and Pen-PPO are nearly stall-free.
+   Time spent on stall for tram traces. BBA has several large stall spikes, while Pensieve and Pen-PPO are nearly stall-free.
 
 .. figure:: ../PLOT/graphs/baselines-tram-qoe.png
    :alt: QoE CDF for tram traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   QoE CDF for tram traces.
-
-Pen-PPO is best on tram, with RobustMPC and Pensieve close behind.
+   QoE CDF for tram traces. Pen-PPO is best on tram, with RobustMPC and Pensieve close behind.
 
 .. figure:: ../PLOT/graphs/baselines-tram-tradeoff.png
    :alt: Bitrate versus stall tradeoff for tram traces
-   :width: 95%
+   :width:  100%
    :align: center
 
-   Bitrate versus stall tradeoff for tram traces.
-
-The tram tradeoff plot again shows why bitrate is not enough: BBA sits rightward, but far too high on stall. Pen-PPO and Pensieve give up very little bitrate while staying much safer.
+   Bitrate versus stall tradeoff for tram traces.The tram tradeoff plot again shows why bitrate is not enough: BBA sits rightward, but far too high on stall. Pen-PPO and Pensieve give up very little bitrate while staying much safer.
 
 Key takeaway
 ------------
