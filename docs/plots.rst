@@ -259,64 +259,63 @@ The bus tradeoff view shows why raw bitrate is misleading. RobustMPC reaches the
 Car
 ---
 
-The car dataset includes **Alesund to Oslo** and **Oslo to Alesund**. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation.
 
 .. figure:: ../PLOT/graphs/car-map.jpg
    :alt: Car route map
-   :width: 75%
+   :figwidth: 100%
    :align: center
 
-   Car route map.
+   Car route map. 
+
+The car route data includes **Oslo to Alesund**. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation.
 
 .. figure:: ../PLOT/graphs/car-bw.png
    :alt: Observed bandwidth along the car route
    :width: 85%
-   Observed bandwidth along the car route.
+   :align: left
 
-   The car bandwidth figure shows long weak stretches interrupted by short high-capacity windows. A controller that overreacts to peaks can be punished heavily afterward.
-   The updated car bandwidth trace for ``car.snaroya-smestad`` begins with mixed moderate bandwidth, rises into a highly bursty section with several sharp peaks approaching the top of the figure, and then gradually decays into a long lower-throughput tail with near-zero samples near the end. This makes car a strong long-horizon adaptation test: algorithms that chase the early spikes too aggressively can be exposed once the route settles into weaker connectivity.
+   Observed bandwidth along the car route.   The car bandwidth figure shows long weak stretches interrupted by short high-capacity windows. A controller that overreacts to peaks can be punished heavily afterward. The updated car bandwidth trace for ``car.snaroya-smestad`` begins with mixed moderate bandwidth, rises into a highly bursty section with several sharp peaks approaching the top of the figure, and then gradually decays into a long lower-throughput tail with near-zero samples near the end. This makes car a strong long-horizon adaptation test: algorithms that chase the early spikes too aggressively can be exposed once the route settles into weaker connectivity.
 
 .. figure:: ../PLOT/graphs/baselines-car-br.png
    :alt: Mean video bitrate for car traces
    :width: 75%
+   :align: left
 
    Mean video bitrate for car traces.
-
    BBA and RobustMPC are highest in bitrate, with Pen-PPO and Pensieve close behind.
 
 .. figure:: ../PLOT/graphs/baselines-car-sr.png
    :alt: Bitrate smoothness for car traces
    :width: 75%
+   :align: left
 
    Bitrate smoothness for car traces.
-
    NetLLM and Pen-PPO are much smoother than BBA and BOLA.
 
 .. figure:: ../PLOT/graphs/baselines-car-st.png
    :alt: Stall burden for car traces
    :width: 75%
+   :align: left
 
    Time spent on stall for car traces.
-
    The stall plot is decisive: NetLLM has zero mean stall, Pen-PPO is low, while BBA and RobustMPC suffer large failures.
 
 .. figure:: ../PLOT/graphs/baselines-car-qoe.png
    :alt: QoE CDF for car traces
-   :width: 95%
+   :figwidth: 100%
    :align: center
 
    QoE CDF for car traces.
-
 Car is one of NetLLM's strongest groups, with Pen-PPO next.
 
 .. figure:: ../PLOT/graphs/baselines-car-tradeoff.png
    :alt: Bitrate versus stall tradeoff for car traces
-   :width: 95%
+   :figwidth: 100%
    :align: center
 
    Bitrate versus stall tradeoff for car traces.
 
-   The car tradeoff plot is a strong counterexample to bitrate-only analysis. BBA, RobustMPC, Pensieve, and Pen-PPO all cluster around similar bitrate, but NetLLM and Pen-PPO sit much lower on stall, which is why they look better in QoE.
+The car tradeoff plot is a strong counterexample to bitrate-only analysis. BBA, RobustMPC, Pensieve, and Pen-PPO all cluster around similar bitrate, but NetLLM and Pen-PPO sit much lower on stall, which is why they look better in QoE.
 
 .. _ferry:
 
