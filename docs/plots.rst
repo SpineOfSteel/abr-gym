@@ -150,7 +150,7 @@ Across all transports, bitrate means are close: BBA and RobustMPC are highest at
 
    Bitrate smoothness across the full trace set.
 
-Smoothness separates the schemes more clearly. NetLLM and Pen-PPO are the smoothest overall, while BBA and BOLA make larger switches.
+   Smoothness separates the schemes more clearly. NetLLM and Pen-PPO are the smoothest overall, while BBA and BOLA make larger switches.
 
 .. figure:: ../PLOT/graphs/baselines-all-st.png
    :alt: Stall burden across all transport traces
@@ -159,7 +159,7 @@ Smoothness separates the schemes more clearly. NetLLM and Pen-PPO are the smooth
 
    Time spent on stall across the full trace set.
 
-The stall plot explains why BBA's bitrate lead does not translate into the best experience. BBA has the highest stall burden, while Pen-PPO and BOLA are much safer.
+   The stall plot explains why BBA's bitrate lead does not translate into the best experience. BBA has the highest stall burden, while Pen-PPO and BOLA are much safer.
 
 .. figure:: ../PLOT/graphs/baselines-all-qoe.png
    :alt: QoE CDF across all transport traces
@@ -168,7 +168,7 @@ The stall plot explains why BBA's bitrate lead does not translate into the best 
 
    QoE CDF across the full trace set.
 
-The aggregate QoE CDF ranks Pen-PPO first, with RobustMPC and Pensieve next. BBA is clearly left-shifted despite its high bitrate.
+   The aggregate QoE CDF ranks Pen-PPO first, with RobustMPC and Pensieve next. BBA is clearly left-shifted despite its high bitrate.
 
 .. figure:: ../PLOT/graphs/baselines-all-tradeoff.png
    :alt: Bitrate versus stall tradeoff across all transport traces
@@ -177,7 +177,7 @@ The aggregate QoE CDF ranks Pen-PPO first, with RobustMPC and Pensieve next. BBA
 
    Bitrate versus stall tradeoff across the full trace set.
 
-This tradeoff plot makes the main lesson explicit: **bitrate is not enough**. BBA and RobustMPC sit near the same bitrate region as Pen-PPO and Pensieve, but with substantially higher stall. Pen-PPO is attractive because it stays close to the right side while remaining near the bottom.
+   This tradeoff plot makes the main lesson explicit: **bitrate is not enough**. BBA and RobustMPC sit near the same bitrate region as Pen-PPO and Pensieve, but with substantially higher stall. Pen-PPO is attractive because it stays close to the right side while remaining near the bottom.
 
 .. _transport-specific-evaluation:
 
@@ -202,7 +202,7 @@ The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense cit
 
 .. figure:: ../PLOT/graphs/bus-bw.png
    :alt: Observed bandwidth along the bus route
-   :width: 85%
+   :width: 75%
    :align: center
 
    Observed bandwidth along the bus route.
@@ -212,7 +212,7 @@ The updated bus bandwidth view shows a route that starts in a lower and more irr
 
 .. figure:: ../PLOT/graphs/baselines-bus-br.png
    :alt: Mean video bitrate for bus traces
-   :width: 85%
+   :width: 75%
    :align: center
 
    Mean video bitrate for bus traces.
