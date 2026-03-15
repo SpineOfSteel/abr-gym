@@ -302,7 +302,9 @@ From Fig 27 - 32
 
 Ferry
 -----
+
 From Fig. 33 - 39
+
 .. figure:: ../PLOT/graphs/ferry-map.jpg
    :alt: Ferry route map
    :width:  100%
@@ -354,8 +356,9 @@ From Fig. 33 - 39
 
 .. _metro:
 
-Metro (From Fig. 40 - 46)
------
+Metro (From Fig 40 to 46)
+-------------------------
+
 .. figure:: ../PLOT/graphs/metro-map.jpg
    :alt: Metro route map
    :width:  100%
@@ -410,6 +413,7 @@ Metro (From Fig. 40 - 46)
 Train
 -----
 The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment.
+
 .. figure:: ../PLOT/graphs/train-map.jpg
    :alt: Train route map
    :width:  100%
@@ -475,8 +479,7 @@ Tram
    :width:  100%
    :align: center
 
-   Observed bandwidth along the tram route. The tram bandwidth profile is noisy but not dominated by a single total collapse, so stability matters more than peak chasing.
-The updated tram views show clear directional asymmetry. ``tram.ljabru-jernbanetorget`` contains a noisier and more bursty middle section with several tall spikes, while ``tram.jernbanetorget-ljabru`` is more compressed and generally stays within a lower range. Across both directions, most of the route lives in a moderate-bandwidth regime with frequent short swings rather than long hard outages, so tram remains a strong stability-focused benchmark where overshooting on short-lived peaks can still hurt consistency.
+   Observed bandwidth along the tram route. The tram bandwidth profile is noisy but not dominated by a single total collapse, so stability matters more than peak chasing. The updated tram views show clear directional asymmetry. ``tram.ljabru-jernbanetorget`` contains a noisier and more bursty middle section with several tall spikes, while ``tram.jernbanetorget-ljabru`` is more compressed and generally stays within a lower range. Across both directions, most of the route lives in a moderate-bandwidth regime with frequent short swings rather than long hard outages, so tram remains a strong stability-focused benchmark where overshooting on short-lived peaks can still hurt consistency.
 
 .. figure:: ../PLOT/graphs/baselines-tram-br.png
    :alt: Mean video bitrate for tram traces

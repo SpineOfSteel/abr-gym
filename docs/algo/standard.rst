@@ -10,12 +10,6 @@ Standard
 .. toctree::
    :maxdepth: 1
 
-   rb
-   bb
-   bola
-   fastmpc
-   robustmpc
-   remote_abr
 
 .. contents::
    :local:
