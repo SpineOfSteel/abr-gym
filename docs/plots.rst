@@ -191,14 +191,14 @@ Each subsection includes route context, bandwidth structure, and the scheme comp
 Bus
 ---
 
-The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense city movement with changing coverage and is a useful urban mobility benchmark.
+The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense city movement with changing coverage and is a useful urban mobility benchmark. Refer Fig. 20 to Fig. 26
 
 .. figure:: ../PLOT/graphs/bus-map.jpg
    :alt: Bus route map
    :width:  100%
    :align: center
 
-   Bus route map.
+   Bus route map. The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense city movement with changing coverage and is a useful urban mobility benchmark.
 
 .. figure:: ../PLOT/graphs/bus-bw.png
    :alt: Observed bandwidth along the bus route
@@ -247,7 +247,7 @@ The bus route runs from **Ljabru to Jernbanetorget** in Oslo. It mixes dense cit
 Car
 ---
 
-From Fig 27 - 32
+The car route data includes **Oslo to Alesund**. These are long routes with both strong and very weak connectivity regions, so they stress long-horizon adaptation. Refer Fig. 27 to Fig. 32
 
 .. figure:: ../PLOT/graphs/car-map.jpg
    :alt: Car route map
@@ -303,7 +303,7 @@ From Fig 27 - 32
 Ferry
 -----
 
-From Fig. 33 - 39
+The ferry route runs from **Nesoddtangen to Aker brygge**. Compared with land-only routes, it exposes the player to waterfront coverage changes and a different infrastructure geometry. Refer Fig. 33 to Fig. 39
 
 .. figure:: ../PLOT/graphs/ferry-map.jpg
    :alt: Ferry route map
@@ -356,8 +356,10 @@ From Fig. 33 - 39
 
 .. _metro:
 
-Metro (From Fig 40 to 46)
+Metro 
 -------------------------
+
+The metro route runs from **Kalbakken to Jernbanetorget**. Part of the route is underground in a tunnel with very weak signal, making metro one of the hardest mobility stress tests in the set. Refer Fig. 40 to Fig. 46
 
 .. figure:: ../PLOT/graphs/metro-map.jpg
    :alt: Metro route map
@@ -412,14 +414,14 @@ Metro (From Fig 40 to 46)
 
 Train
 -----
-The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment.
+The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment. Refer Fig. 48 to Fig. 54
 
 .. figure:: ../PLOT/graphs/train-map.jpg
    :alt: Train route map
    :width:  100%
    :align: center
 
-   Train route map.
+   Train route map. The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These traces capture longer rail mobility with repeated coverage changes over a corridor rather than a short city segment.
 
 .. figure:: ../PLOT/graphs/train-bw.png
    :alt: Observed bandwidth along the train route
@@ -467,6 +469,9 @@ The train dataset includes **Oslo to Vestby** and **Vestby to Oslo**. These trac
 
 Tram
 ----
+
+The tram portion includes multiple urban routes such as **Ljabru to Jernbanetorget**, **Jernbanetorget to Ljabru**, and **Jernbanetorget to University hospital**. These stop-and-go traces test whether a controller can avoid overreacting to recurring medium-scale changes. Refer Fig. 55 to Fig. 61
+
 .. figure:: ../PLOT/graphs/tram-map.jpg
    :alt: Tram route map
    :width:  100%
